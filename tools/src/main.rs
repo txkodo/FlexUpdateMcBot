@@ -21,43 +21,37 @@ enum Commands {
     Update,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-struct CargoToml {
-    #[serde(default)]
-    dependencies: HashMap<String, DependencyValue>,
-    #[serde(default)]
-    package: Option<PackageInfo>,
-    #[serde(default)]
-    workspace: Option<WorkspaceInfo>,
+#[derive(Debug, Deserialize)]
+struct AzaleaCargoToml {
+    workspace: WorkspaceInfo,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
+struct WorkspaceInfo {
+    package: PackageInfo,
+}
+#[derive(Debug, Deserialize)]
 struct PackageInfo {
     #[serde(default)]
-    version: Option<String>,
+    version: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct WorkspaceInfo {
-    #[serde(default)]
-    package: Option<PackageInfo>,
+struct BotCargoToml {
+    dependencies: BotDependencies,
+    #[serde(flatten)]
+    others: HashMap<String, toml::Value>,
 }
-
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(untagged)]
-enum DependencyValue {
-    Simple(String),
-    Detailed(DetailedDependency),
+struct BotDependencies {
+    azalea: AzaleaDependency,
+    #[serde(flatten)]
+    others: HashMap<String, toml::Value>,
 }
-
 #[derive(Debug, Deserialize, Serialize)]
-struct DetailedDependency {
-    #[serde(default)]
-    git: Option<String>,
-    #[serde(default)]
-    rev: Option<String>,
-    #[serde(default)]
-    version: Option<String>,
+struct AzaleaDependency {
+    git: String,
+    rev: String,
 }
 
 #[tokio::main]
@@ -73,15 +67,18 @@ async fn main() -> Result<()> {
 
 async fn update_bot() -> Result<()> {
     // 1. Parse bot/Cargo.toml to get current azalea rev
-    let current_rev = get_current_azalea_rev()?;
-    println!("Current azalea rev: {}", current_rev);
+    let mut bot_config = get_bot_config()?;
+    println!(
+        "Current azalea rev: {}",
+        &bot_config.dependencies.azalea.rev
+    );
 
     // 2. Clone azalea repository
     let azalea_path = "./azalea-temp";
     clone_azalea_repo(azalea_path).await?;
 
     // 3. Find next commit after current rev
-    let next_rev = find_next_commit(azalea_path, &current_rev)?;
+    let next_rev = find_next_commit(azalea_path, &bot_config.dependencies.azalea.rev)?;
 
     if let Some(next_rev) = next_rev {
         println!("Next azalea rev: {}", next_rev);
@@ -94,7 +91,8 @@ async fn update_bot() -> Result<()> {
         println!("Minecraft version: {}", mc_version);
 
         // 5. Update bot/Cargo.toml
-        update_bot_cargo_toml(&next_rev)?;
+        bot_config.dependencies.azalea.rev = next_rev.clone();
+        update_bot_config(&bot_config)?;
 
         // 6. Copy azalea/Cargo.lock to bot/Cargo.lock
         copy_cargo_lock(azalea_path)?;
@@ -113,20 +111,16 @@ async fn update_bot() -> Result<()> {
     Ok(())
 }
 
-fn get_current_azalea_rev() -> Result<String> {
+fn get_bot_config() -> Result<BotCargoToml> {
     let cargo_toml_content =
         fs::read_to_string("bot/Cargo.toml").context("Failed to read bot/Cargo.toml")?;
+    Ok(toml::from_str(&cargo_toml_content).context("Failed to parse bot/Cargo.toml")?)
+}
 
-    let cargo_toml: CargoToml =
-        toml::from_str(&cargo_toml_content).context("Failed to parse bot/Cargo.toml")?;
-
-    if let Some(DependencyValue::Detailed(azalea_dep)) = cargo_toml.dependencies.get("azalea") {
-        if let Some(rev) = &azalea_dep.rev {
-            return Ok(rev.clone());
-        }
-    }
-
-    anyhow::bail!("Could not find azalea revision in bot/Cargo.toml");
+fn update_bot_config(bot_config: &BotCargoToml) -> Result<()> {
+    fs::write("bot/Cargo.toml", toml::to_string(bot_config)?)
+        .context("Failed to write updated bot/Cargo.toml")?;
+    Ok(())
 }
 
 async fn clone_azalea_repo(path: &str) -> Result<()> {
@@ -146,22 +140,24 @@ fn find_next_commit(repo_path: &str, current_rev: &str) -> Result<Option<String>
     let mut revwalk = repo.revwalk()?;
     revwalk.push_head()?;
 
-    let mut found_current = false;
+    // Parse current_rev to Oid and hide it (and all older commits)
+    let current_oid =
+        git2::Oid::from_str(current_rev).context("Failed to parse current revision")?;
+    revwalk.hide(current_oid)?;
 
-    for oid in revwalk {
-        let oid = oid?;
-        let commit_hash = oid.to_string();
+    // Collect all commits newer than current_rev
+    let commits: Result<Vec<String>, _> = revwalk
+        .collect::<Result<Vec<_>, _>>()
+        .map(|oids| oids.into_iter().map(|oid| oid.to_string()).collect());
 
-        if found_current {
-            return Ok(Some(commit_hash));
-        }
+    let commits = commits?;
 
-        if commit_hash.starts_with(current_rev) {
-            found_current = true;
-        }
+    // The next commit is the oldest among the newer commits (last in the list)
+    if !commits.is_empty() {
+        Ok(Some(commits.last().unwrap().clone()))
+    } else {
+        Ok(None) // current_rev is the latest commit
     }
-
-    Ok(None)
 }
 
 fn checkout_revision(repo_path: &str, rev: &str) -> Result<()> {
@@ -180,33 +176,18 @@ fn get_minecraft_version(azalea_path: &str) -> Result<String> {
     let cargo_toml_content =
         fs::read_to_string(&cargo_toml_path).context("Failed to read azalea/Cargo.toml")?;
 
-    let cargo_toml: CargoToml =
+    let cargo_toml: AzaleaCargoToml =
         toml::from_str(&cargo_toml_content).context("Failed to parse azalea/Cargo.toml")?;
 
-    if let Some(workspace) = &cargo_toml.workspace {
-        if let Some(package) = &workspace.package {
-            if let Some(version) = &package.version {
-                return Ok(version.clone());
-            }
-        }
+    let full_version = cargo_toml.workspace.package.version;
+    
+    // Extract Minecraft version from format like "0.13.0+mc1.21.7" -> "1.21.7"
+    let re = regex::Regex::new(r"\+mc(.+)$").unwrap();
+    if let Some(caps) = re.captures(&full_version) {
+        Ok(caps[1].to_string())
+    } else {
+        anyhow::bail!("Could not extract Minecraft version from: {}", full_version);
     }
-
-    anyhow::bail!("Could not find version in azalea/Cargo.toml workspace.package.version");
-}
-
-fn update_bot_cargo_toml(new_rev: &str) -> Result<()> {
-    let cargo_toml_path = "bot/Cargo.toml";
-    let cargo_toml_content =
-        fs::read_to_string(cargo_toml_path).context("Failed to read bot/Cargo.toml")?;
-
-    // Use regex to replace the rev field instead of parsing and re-serializing
-    let re = regex::Regex::new(r#"rev = "[^"]+""#).unwrap();
-    let updated_content = re.replace(&cargo_toml_content, &format!(r#"rev = "{}""#, new_rev));
-
-    fs::write(cargo_toml_path, updated_content.as_ref())
-        .context("Failed to write updated bot/Cargo.toml")?;
-
-    Ok(())
 }
 
 fn copy_cargo_lock(azalea_path: &str) -> Result<()> {
