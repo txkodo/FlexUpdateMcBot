@@ -6,15 +6,38 @@ on:
     types:
       - completed
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Build workflow run ID to use'
+        required: true
+        type: string
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+    
+    - name: Get target run ID
+      id: target-run
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "run_id=${{ github.event.inputs.run_id }}" >> $GITHUB_OUTPUT
+        else
+          echo "run_id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Debug workflow info
+      run: |
+        echo "Event name: ${{ github.event_name }}"
+        echo "Target run ID: ${{ steps.target-run.outputs.run_id }}"
+        echo "Input run ID: ${{ github.event.inputs.run_id }}"
+        echo "Workflow run ID: ${{ github.event.workflow_run.id }}"
+        echo "Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}"
     
     - name: Get Minecraft version
       id: mc-version
@@ -24,11 +47,20 @@ jobs:
         MC_VERSION=$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].metadata.mc_version // "unknown"')
         echo "mc_version=${MC_VERSION}" >> $GITHUB_OUTPUT
     
+    - name: List available artifacts
+      run: |
+        echo "Listing artifacts for workflow run ${{ steps.target-run.outputs.run_id }}:"
+        gh run view ${{ steps.target-run.outputs.run_id }} --json artifacts --jq '.artifacts[] | {name: .name, id: .id}'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
         pattern: 'flex-update-mc-bot-*'
         path: artifacts/
+        run-id: ${{ steps.target-run.outputs.run_id }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Prepare release assets
       run: |
