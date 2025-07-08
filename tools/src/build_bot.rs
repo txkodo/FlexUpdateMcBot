@@ -26,7 +26,7 @@ fn main() -> Result<()> {
     let mc_version = &bot_config.package.metadata.mc_version;
 
     // Determine target and file extension
-    let target = cli.target.unwrap_or_else(|| {
+    let target: String = cli.target.unwrap_or_else(|| {
         // Default target based on current platform
         let arch = env::consts::ARCH;
         let os = env::consts::OS;
@@ -49,7 +49,7 @@ fn main() -> Result<()> {
     // Build the bot
     let mut build_cmd = Command::new("cargo");
     build_cmd
-        .args(["build", "--release"])
+        .args(["+nightly", "build", "--release"])
         .current_dir("bot");
 
     // Add target if it's not the default
@@ -70,15 +70,15 @@ fn main() -> Result<()> {
 
     // Determine source binary path
     let binary_name = format!("flex-update-mc-bot{}", exe_extension);
-    let source_path = if target == format!("{}-unknown-{}-gnu", env::consts::ARCH, env::consts::OS) {
+    let source_path = if target == format!("{}-unknown-{}-gnu", env::consts::ARCH, env::consts::OS)
+    {
         format!("bot/target/release/{}", binary_name)
     } else {
         format!("bot/target/{}/release/{}", target, binary_name)
     };
 
     // Create output directory
-    fs::create_dir_all(&cli.output_dir)
-        .context("Failed to create output directory")?;
+    fs::create_dir_all(&cli.output_dir).context("Failed to create output directory")?;
 
     // Determine output filename
     let os_name = if target.contains("linux") {
@@ -105,9 +105,16 @@ fn main() -> Result<()> {
     );
     let output_path = Path::new(&cli.output_dir).join(&output_filename);
 
+    println!("Output binary will be: {}", output_path.display());
+
     // Copy binary to output directory
-    fs::copy(&source_path, &output_path)
-        .with_context(|| format!("Failed to copy {} to {}", source_path, output_path.display()))?;
+    fs::copy(&source_path, &output_path).with_context(|| {
+        format!(
+            "Failed to copy {} to {}",
+            source_path,
+            output_path.display()
+        )
+    })?;
 
     println!("Build completed: {}", output_path.display());
 

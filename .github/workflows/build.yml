@@ -81,7 +81,7 @@ jobs:
         esac
         
         # Use the Rust build tool
-        cargo run --bin build-bot -- --target ${TARGET} --output-dir artifacts
+        cargo run --bin build-bot -p tools -- --target ${TARGET} --output-dir artifacts
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
