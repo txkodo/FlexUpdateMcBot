@@ -44,16 +44,18 @@ fn main() -> Result<()> {
     let target_add_output = Command::new("rustup")
         .args(["target", "add", target])
         .output()
-        .context("Failed to add rustup target")?;
-    
-    if !target_add_output.status.success() {
-        println!("Warning: Failed to add target (might already exist): {}", 
-                String::from_utf8_lossy(&target_add_output.stderr));
-    }
+        .context("Failed to execute rustup target add")?;
 
-    // Setup cross-compilation linker for Linux ARM64
-    if target == "aarch64-unknown-linux-gnu" {
-        env::set_var("CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER", "aarch64-linux-gnu-gcc");
+    if !target_add_output.status.success() {
+        let stderr = String::from_utf8_lossy(&target_add_output.stderr);
+        // Only warn if it's not already installed
+        if !stderr.contains("already installed") {
+            println!("Warning: Failed to add target: {}", stderr);
+        } else {
+            println!("Target {} already installed", target);
+        }
+    } else {
+        println!("Successfully added target: {}", target);
     }
 
     let is_windows = target.contains("windows");
@@ -64,6 +66,15 @@ fn main() -> Result<()> {
 
     // Build the bot
     let mut build_cmd = Command::new("cargo");
+
+    // Setup cross-compilation linker for Linux ARM64
+    if target == "aarch64-unknown-linux-gnu" {
+        build_cmd.env(
+            "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER",
+            "aarch64-linux-gnu-gcc",
+        );
+    }
+
     build_cmd
         .args(["+nightly", "build", "--release"])
         .current_dir("bot");
@@ -71,15 +82,26 @@ fn main() -> Result<()> {
     // Always add target
     build_cmd.args(["--target", &target]);
 
+    println!("Executing build command: {:?}", build_cmd);
     let build_output = build_cmd
         .output()
         .context("Failed to execute cargo build")?;
 
     if !build_output.status.success() {
-        anyhow::bail!(
-            "cargo build failed: {}",
+        println!(
+            "Build stdout: {}",
+            String::from_utf8_lossy(&build_output.stdout)
+        );
+        println!(
+            "Build stderr: {}",
             String::from_utf8_lossy(&build_output.stderr)
         );
+        anyhow::bail!(
+            "cargo build failed with exit code: {:?}",
+            build_output.status.code()
+        );
+    } else {
+        println!("Build completed successfully");
     }
 
     // Determine source binary path
