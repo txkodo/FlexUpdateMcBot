@@ -27,8 +27,7 @@ jobs:
     
     - name: Run update tool
       run: |
-        cd tools
-        cargo run -- update
+        cargo run -p tools -- update
     
     - name: Push changes to main
       run: |

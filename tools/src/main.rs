@@ -23,6 +23,7 @@ enum Commands {
 
 #[derive(Debug, Deserialize, Serialize)]
 struct CargoToml {
+    #[serde(default)]
     dependencies: HashMap<String, DependencyValue>,
     #[serde(default)]
     package: Option<PackageInfo>,
@@ -198,17 +199,11 @@ fn update_bot_cargo_toml(new_rev: &str) -> Result<()> {
     let cargo_toml_content =
         fs::read_to_string(cargo_toml_path).context("Failed to read bot/Cargo.toml")?;
 
-    let mut cargo_toml: CargoToml =
-        toml::from_str(&cargo_toml_content).context("Failed to parse bot/Cargo.toml")?;
+    // Use regex to replace the rev field instead of parsing and re-serializing
+    let re = regex::Regex::new(r#"rev = "[^"]+""#).unwrap();
+    let updated_content = re.replace(&cargo_toml_content, &format!(r#"rev = "{}""#, new_rev));
 
-    if let Some(DependencyValue::Detailed(azalea_dep)) = cargo_toml.dependencies.get_mut("azalea") {
-        azalea_dep.rev = Some(new_rev.to_string());
-    }
-
-    let updated_content =
-        toml::to_string_pretty(&cargo_toml).context("Failed to serialize updated Cargo.toml")?;
-
-    fs::write(cargo_toml_path, updated_content)
+    fs::write(cargo_toml_path, updated_content.as_ref())
         .context("Failed to write updated bot/Cargo.toml")?;
 
     Ok(())
