@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: ["Build"]
+    types:
+      - completed
+    branches: [ main ]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Get Minecraft version
+      id: mc-version
+      run: |
+        # Extract version from bot/Cargo.toml azalea dependency
+        if [ -f "bot/Cargo.toml" ]; then
+          # This is a simplified version - in production, you'd want to parse this more robustly
+          MC_VERSION=$(grep -A 2 '\[dependencies\.azalea\]' bot/Cargo.toml | grep 'rev' | head -1 | cut -d'"' -f2 | cut -c1-8)
+          echo "mc_version=${MC_VERSION}" >> $GITHUB_OUTPUT
+        else
+          echo "mc_version=unknown" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: 'flex-update-mc-bot-*'
+        path: artifacts/
+    
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+        
+        # Process each artifact
+        for artifact_dir in artifacts/*/; do
+          if [ -d "$artifact_dir" ]; then
+            artifact_name=$(basename "$artifact_dir")
+            
+            # Determine file extension and OS/arch
+            if echo "$artifact_name" | grep -q "windows"; then
+              ext=".exe"
+            else
+              ext=""
+            fi
+            
+            # Copy and rename the binary
+            if [ -f "$artifact_dir/flex-update-mc-bot$ext" ]; then
+              # Extract OS and arch from artifact name
+              # Format: flex-update-mc-bot-{MC_VERSION}-{os}-{arch}
+              os_arch=$(echo "$artifact_name" | sed 's/flex-update-mc-bot-[^-]*-//')
+              
+              # Create proper filename
+              if echo "$artifact_name" | grep -q "windows"; then
+                filename="flex-update-mc-bot-${{ steps.mc-version.outputs.mc_version }}-${os_arch}.exe"
+              else
+                filename="flex-update-mc-bot-${{ steps.mc-version.outputs.mc_version }}-${os_arch}"
+              fi
+              
+              cp "$artifact_dir/flex-update-mc-bot$ext" "release-assets/$filename"
+            fi
+          fi
+        done
+    
+    - name: Check if release exists
+      id: check-release
+      run: |
+        if gh release view "mc-${{ steps.mc-version.outputs.mc_version }}" >/dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+        fi
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Create or update release
+      run: |
+        if [ "${{ steps.check-release.outputs.exists }}" = "true" ]; then
+          # Release exists, update it
+          gh release upload "mc-${{ steps.mc-version.outputs.mc_version }}" release-assets/* --clobber
+        else
+          # Create new release
+          gh release create "mc-${{ steps.mc-version.outputs.mc_version }}" \
+            --title "Minecraft ${{ steps.mc-version.outputs.mc_version }} Build" \
+            --notes "Automated build for Minecraft version ${{ steps.mc-version.outputs.mc_version }}" \
+            release-assets/*
+        fi
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

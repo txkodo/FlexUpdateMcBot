@@ -1,0 +1,108 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        arch: [x64, arm64]
+        exclude:
+          # Windows ARM64 not supported in GitHub Actions
+          - os: windows-latest
+            arch: arm64
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        override: true
+    
+    - name: Add target for cross-compilation
+      run: |
+        case "${{ matrix.os }}" in
+          "ubuntu-latest")
+            if [ "${{ matrix.arch }}" = "arm64" ]; then
+              rustup target add aarch64-unknown-linux-gnu
+              sudo apt-get update
+              sudo apt-get install -y gcc-aarch64-linux-gnu
+            fi
+            ;;
+          "macos-latest")
+            if [ "${{ matrix.arch }}" = "arm64" ]; then
+              rustup target add aarch64-apple-darwin
+            fi
+            ;;
+        esac
+    
+    - name: Cache dependencies
+      uses: Swatinem/rust-cache@v2
+    
+    - name: Get Minecraft version
+      id: mc-version
+      run: |
+        # Extract version from bot/Cargo.toml azalea dependency
+        if [ -f "bot/Cargo.toml" ]; then
+          # This is a simplified version - in production, you'd want to parse this more robustly
+          MC_VERSION=$(grep -A 2 '\[dependencies\.azalea\]' bot/Cargo.toml | grep 'rev' | head -1 | cut -d'"' -f2 | cut -c1-8)
+          echo "mc_version=${MC_VERSION}" >> $GITHUB_OUTPUT
+        else
+          echo "mc_version=unknown" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Build
+      run: |
+        cd bot
+        case "${{ matrix.os }}" in
+          "ubuntu-latest")
+            if [ "${{ matrix.arch }}" = "arm64" ]; then
+              cargo build --release --target aarch64-unknown-linux-gnu
+              TARGET_DIR="target/aarch64-unknown-linux-gnu/release"
+            else
+              cargo build --release
+              TARGET_DIR="target/release"
+            fi
+            ;;
+          "windows-latest")
+            cargo build --release
+            TARGET_DIR="target/release"
+            ;;
+          "macos-latest")
+            if [ "${{ matrix.arch }}" = "arm64" ]; then
+              cargo build --release --target aarch64-apple-darwin
+              TARGET_DIR="target/aarch64-apple-darwin/release"
+            else
+              cargo build --release
+              TARGET_DIR="target/release"
+            fi
+            ;;
+        esac
+        
+        # Copy binary to a standard location
+        mkdir -p ../artifacts
+        case "${{ matrix.os }}" in
+          "windows-latest")
+            cp ${TARGET_DIR}/flex-update-mc-bot.exe ../artifacts/
+            ;;
+          *)
+            cp ${TARGET_DIR}/flex-update-mc-bot ../artifacts/
+            ;;
+        esac
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: flex-update-mc-bot-${{ steps.mc-version.outputs.mc_version }}-${{ matrix.os }}-${{ matrix.arch }}
+        path: artifacts/
+        retention-days: 7

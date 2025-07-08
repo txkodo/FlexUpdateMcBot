@@ -1,0 +1,18 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary directories
+/azalea
+azalea-temp/
+
+# Build artifacts
+artifacts/
