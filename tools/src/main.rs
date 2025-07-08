@@ -39,6 +39,7 @@ struct PackageInfo {
 #[derive(Debug, Deserialize, Serialize)]
 struct BotCargoToml {
     dependencies: BotDependencies,
+    package: BotPackageInfo,
     #[serde(flatten)]
     others: HashMap<String, toml::Value>,
 }
@@ -52,6 +53,18 @@ struct BotDependencies {
 struct AzaleaDependency {
     git: String,
     rev: String,
+}
+#[derive(Debug, Deserialize, Serialize)]
+struct BotPackageInfo {
+    metadata: BotMetadata,
+    #[serde(flatten)]
+    others: HashMap<String, toml::Value>,
+}
+#[derive(Debug, Deserialize, Serialize)]
+struct BotMetadata {
+    mc_version: String,
+    #[serde(flatten)]
+    others: HashMap<String, toml::Value>,
 }
 
 #[tokio::main]
@@ -92,6 +105,7 @@ async fn update_bot() -> Result<()> {
 
         // 5. Update bot/Cargo.toml
         bot_config.dependencies.azalea.rev = next_rev.clone();
+        bot_config.package.metadata.mc_version = mc_version.clone();
         update_bot_config(&bot_config)?;
 
         // 6. Copy azalea/Cargo.lock to bot/Cargo.lock
@@ -180,7 +194,7 @@ fn get_minecraft_version(azalea_path: &str) -> Result<String> {
         toml::from_str(&cargo_toml_content).context("Failed to parse azalea/Cargo.toml")?;
 
     let full_version = cargo_toml.workspace.package.version;
-    
+
     // Extract Minecraft version from format like "0.13.0+mc1.21.7" -> "1.21.7"
     let re = regex::Regex::new(r"\+mc(.+)$").unwrap();
     if let Some(caps) = re.captures(&full_version) {

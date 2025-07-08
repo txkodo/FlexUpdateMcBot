@@ -19,14 +19,10 @@ jobs:
     - name: Get Minecraft version
       id: mc-version
       run: |
-        # Extract version from bot/Cargo.toml azalea dependency
-        if [ -f "bot/Cargo.toml" ]; then
-          # This is a simplified version - in production, you'd want to parse this more robustly
-          MC_VERSION=$(grep -A 2 '\[dependencies\.azalea\]' bot/Cargo.toml | grep 'rev' | head -1 | cut -d'"' -f2 | cut -c1-8)
-          echo "mc_version=${MC_VERSION}" >> $GITHUB_OUTPUT
-        else
-          echo "mc_version=unknown" >> $GITHUB_OUTPUT
-        fi
+        # Extract MC version from bot/Cargo.toml metadata
+        cd bot
+        MC_VERSION=$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].metadata.mc_version // "unknown"')
+        echo "mc_version=${MC_VERSION}" >> $GITHUB_OUTPUT
     
     - name: Download all artifacts
       uses: actions/download-artifact@v4
