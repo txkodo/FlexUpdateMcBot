@@ -9,13 +9,16 @@ on:
 jobs:
   build:
     strategy:
-      matrix:
+      matrix: 
         os: [ubuntu-latest, windows-latest, macos-latest]
         arch: [x64, arm64]
-        exclude:
-          # Windows ARM64 not supported in GitHub Actions
+        include:
+          - os: ubuntu-latest
+            target_os: linux
           - os: windows-latest
-            arch: arm64
+            target_os: windows
+          - os: macos-latest
+            target_os: macos
     
     runs-on: ${{ matrix.os }}
     
@@ -29,63 +32,24 @@ jobs:
         toolchain: nightly
         override: true
     
-    - name: Add target for cross-compilation
+    - name: Install cross-compilation tools
       run: |
-        case "${{ matrix.os }}" in
-          "ubuntu-latest")
-            if [ "${{ matrix.arch }}" = "arm64" ]; then
-              rustup target add aarch64-unknown-linux-gnu
-              sudo apt-get update
-              sudo apt-get install -y gcc-aarch64-linux-gnu
-            fi
-            ;;
-          "macos-latest")
-            if [ "${{ matrix.arch }}" = "arm64" ]; then
-              rustup target add aarch64-apple-darwin
-            fi
-            ;;
-        esac
+        if [ "${{ matrix.target_os }}" = "linux" ] && [ "${{ matrix.arch }}" = "arm64" ]; then
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+        fi
     
     - name: Cache dependencies
       uses: Swatinem/rust-cache@v2
     
-    - name: Get Minecraft version
-      id: mc-version
-      run: |
-        # Extract MC version from bot/Cargo.toml metadata
-        cd bot
-        MC_VERSION=$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].metadata.mc_version // "unknown"')
-        echo "mc_version=${MC_VERSION}" >> $GITHUB_OUTPUT
-    
     - name: Build
       run: |
-        # Determine target based on matrix
-        case "${{ matrix.os }}" in
-          "ubuntu-latest")
-            if [ "${{ matrix.arch }}" = "arm64" ]; then
-              TARGET="aarch64-unknown-linux-gnu"
-            else
-              TARGET="x86_64-unknown-linux-gnu"
-            fi
-            ;;
-          "windows-latest")
-            TARGET="x86_64-pc-windows-msvc"
-            ;;
-          "macos-latest")
-            if [ "${{ matrix.arch }}" = "arm64" ]; then
-              TARGET="aarch64-apple-darwin"
-            else
-              TARGET="x86_64-apple-darwin"
-            fi
-            ;;
-        esac
-        
-        # Use the Rust build tool
-        cargo run --bin build-bot -p tools -- --target ${TARGET} --output-dir artifacts
+        # Use the Rust build tool with simplified parameters
+        cargo run --bin build-bot -p tools -- --os ${{ matrix.target_os }} --arch ${{ matrix.arch }} --output-dir artifacts
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: flex-update-mc-bot-${{ steps.mc-version.outputs.mc_version }}-${{ matrix.os }}-${{ matrix.arch }}
+        name: flex-update-mc-bot-${{ matrix.target_os }}-${{ matrix.arch }}
         path: artifacts/
         retention-days: 7

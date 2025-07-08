@@ -10,9 +10,12 @@ use tools::*;
 #[command(name = "build-bot")]
 #[command(about = "Build bot for specified platform")]
 struct Cli {
-    /// Target platform (e.g., x86_64-unknown-linux-gnu)
+    /// Operating system (linux, windows, macos)
     #[arg(long)]
-    target: Option<String>,
+    os: String,
+    /// Architecture (x64, arm64)
+    #[arg(long)]
+    arch: String,
     /// Output directory for artifacts
     #[arg(long, default_value = "artifacts")]
     output_dir: String,
@@ -25,20 +28,33 @@ fn main() -> Result<()> {
     let bot_config = get_bot_config()?;
     let mc_version = &bot_config.package.metadata.mc_version;
 
-    // Determine target and file extension
-    let target: String = cli.target.unwrap_or_else(|| {
-        // Default target based on current platform
-        let arch = env::consts::ARCH;
-        let os = env::consts::OS;
-        match (os, arch) {
-            ("linux", "x86_64") => "x86_64-unknown-linux-gnu".to_string(),
-            ("linux", "aarch64") => "aarch64-unknown-linux-gnu".to_string(),
-            ("windows", "x86_64") => "x86_64-pc-windows-msvc".to_string(),
-            ("macos", "x86_64") => "x86_64-apple-darwin".to_string(),
-            ("macos", "aarch64") => "aarch64-apple-darwin".to_string(),
-            _ => format!("{}-unknown-{}-gnu", arch, os),
-        }
-    });
+    // Construct target from OS and ARCH
+    let target = match (cli.os.as_str(), cli.arch.as_str()) {
+        ("linux", "x64") => "x86_64-unknown-linux-gnu",
+        ("linux", "arm64") => "aarch64-unknown-linux-gnu",
+        ("windows", "x64") => "x86_64-pc-windows-msvc",
+        ("windows", "arm64") => "aarch64-pc-windows-msvc",
+        ("macos", "x64") => "x86_64-apple-darwin",
+        ("macos", "arm64") => "aarch64-apple-darwin",
+        _ => anyhow::bail!("Unsupported OS/ARCH combination: {}/{}", cli.os, cli.arch),
+    };
+
+    // Add target for cross-compilation
+    println!("Adding target: {}", target);
+    let target_add_output = Command::new("rustup")
+        .args(["target", "add", target])
+        .output()
+        .context("Failed to add rustup target")?;
+    
+    if !target_add_output.status.success() {
+        println!("Warning: Failed to add target (might already exist): {}", 
+                String::from_utf8_lossy(&target_add_output.stderr));
+    }
+
+    // Setup cross-compilation linker for Linux ARM64
+    if target == "aarch64-unknown-linux-gnu" {
+        env::set_var("CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER", "aarch64-linux-gnu-gcc");
+    }
 
     let is_windows = target.contains("windows");
     let exe_extension = if is_windows { ".exe" } else { "" };
@@ -52,10 +68,8 @@ fn main() -> Result<()> {
         .args(["+nightly", "build", "--release"])
         .current_dir("bot");
 
-    // Add target if it's not the default
-    if target != format!("{}-unknown-{}-gnu", env::consts::ARCH, env::consts::OS) {
-        build_cmd.args(["--target", &target]);
-    }
+    // Always add target
+    build_cmd.args(["--target", &target]);
 
     let build_output = build_cmd
         .output()
@@ -70,38 +84,15 @@ fn main() -> Result<()> {
 
     // Determine source binary path
     let binary_name = format!("flex-update-mc-bot{}", exe_extension);
-    let source_path = if target == format!("{}-unknown-{}-gnu", env::consts::ARCH, env::consts::OS)
-    {
-        format!("bot/target/release/{}", binary_name)
-    } else {
-        format!("bot/target/{}/release/{}", target, binary_name)
-    };
+    let source_path = format!("bot/target/{}/release/{}", target, binary_name);
 
     // Create output directory
     fs::create_dir_all(&cli.output_dir).context("Failed to create output directory")?;
 
     // Determine output filename
-    let os_name = if target.contains("linux") {
-        "linux"
-    } else if target.contains("windows") {
-        "windows"
-    } else if target.contains("darwin") {
-        "macos"
-    } else {
-        "unknown"
-    };
-
-    let arch_name = if target.contains("x86_64") {
-        "x64"
-    } else if target.contains("aarch64") {
-        "arm64"
-    } else {
-        "unknown"
-    };
-
     let output_filename = format!(
         "flex-update-mc-bot-{}-{}-{}{}",
-        mc_version, os_name, arch_name, exe_extension
+        mc_version, cli.os, cli.arch, exe_extension
     );
     let output_path = Path::new(&cli.output_dir).join(&output_filename);
 
