@@ -59,42 +59,29 @@ jobs:
     
     - name: Build
       run: |
-        cd bot
+        # Determine target based on matrix
         case "${{ matrix.os }}" in
           "ubuntu-latest")
             if [ "${{ matrix.arch }}" = "arm64" ]; then
-              cargo build --release --target aarch64-unknown-linux-gnu
-              TARGET_DIR="target/aarch64-unknown-linux-gnu/release"
+              TARGET="aarch64-unknown-linux-gnu"
             else
-              cargo build --release
-              TARGET_DIR="target/release"
+              TARGET="x86_64-unknown-linux-gnu"
             fi
             ;;
           "windows-latest")
-            cargo build --release
-            TARGET_DIR="target/release"
+            TARGET="x86_64-pc-windows-msvc"
             ;;
           "macos-latest")
             if [ "${{ matrix.arch }}" = "arm64" ]; then
-              cargo build --release --target aarch64-apple-darwin
-              TARGET_DIR="target/aarch64-apple-darwin/release"
+              TARGET="aarch64-apple-darwin"
             else
-              cargo build --release
-              TARGET_DIR="target/release"
+              TARGET="x86_64-apple-darwin"
             fi
             ;;
         esac
         
-        # Copy binary to a standard location
-        mkdir -p ../artifacts
-        case "${{ matrix.os }}" in
-          "windows-latest")
-            cp ${TARGET_DIR}/flex-update-mc-bot.exe ../artifacts/
-            ;;
-          *)
-            cp ${TARGET_DIR}/flex-update-mc-bot ../artifacts/
-            ;;
-        esac
+        # Use the Rust build tool
+        cargo run --bin build-bot -- --target ${TARGET} --output-dir artifacts
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4

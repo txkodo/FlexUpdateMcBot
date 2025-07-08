@@ -3,6 +3,14 @@ name = "tools"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "update-bot"
+path = "src/update_bot.rs"
+
+[[bin]]
+name = "build-bot"
+path = "src/build_bot.rs"
+
 [dependencies]
 anyhow = "1.0"
 tokio = { version = "1.0", features = ["full"] }
