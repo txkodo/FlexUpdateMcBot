@@ -6,6 +6,7 @@ on:
     types:
       - completed
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   release:
@@ -34,35 +35,30 @@ jobs:
       run: |
         mkdir -p release-assets
         
-        # Process each artifact
+        echo "Listing artifacts directory:"
+        find artifacts/ -type f -name "*" | head -20
+        
+        # Process each artifact directory
         for artifact_dir in artifacts/*/; do
           if [ -d "$artifact_dir" ]; then
             artifact_name=$(basename "$artifact_dir")
+            echo "Processing artifact: $artifact_name"
             
-            # Determine file extension and OS/arch
-            if echo "$artifact_name" | grep -q "windows"; then
-              ext=".exe"
-            else
-              ext=""
-            fi
+            # List files in this artifact directory
+            echo "Files in $artifact_dir:"
+            ls -la "$artifact_dir"
             
-            # Copy and rename the binary
-            if [ -f "$artifact_dir/flex-update-mc-bot$ext" ]; then
-              # Extract OS and arch from artifact name
-              # Format: flex-update-mc-bot-{MC_VERSION}-{os}-{arch}
-              os_arch=$(echo "$artifact_name" | sed 's/flex-update-mc-bot-[^-]*-//')
-              
-              # Create proper filename
-              if echo "$artifact_name" | grep -q "windows"; then
-                filename="flex-update-mc-bot-${{ steps.mc-version.outputs.mc_version }}-${os_arch}.exe"
-              else
-                filename="flex-update-mc-bot-${{ steps.mc-version.outputs.mc_version }}-${os_arch}"
-              fi
-              
-              cp "$artifact_dir/flex-update-mc-bot$ext" "release-assets/$filename"
-            fi
+            # Find all binary files in the artifact directory
+            find "$artifact_dir" -name "flex-update-mc-bot*" -type f | while read -r binary_file; do
+              echo "Found binary: $binary_file"
+              # Just copy the file with its original name structure
+              cp "$binary_file" "release-assets/"
+            done
           fi
         done
+        
+        echo "Release assets prepared:"
+        ls -la release-assets/
     
     - name: Check if release exists
       id: check-release
@@ -77,11 +73,20 @@ jobs:
     
     - name: Create or update release
       run: |
+        # Check if we have any assets to upload
+        if [ ! -d "release-assets" ] || [ -z "$(ls -A release-assets)" ]; then
+          echo "No release assets found to upload"
+          exit 1
+        fi
+        
+        echo "Assets to upload:"
+        ls -la release-assets/
+        
         if [ "${{ steps.check-release.outputs.exists }}" = "true" ]; then
-          # Release exists, update it
+          echo "Release exists, updating..."
           gh release upload "mc-${{ steps.mc-version.outputs.mc_version }}" release-assets/* --clobber
         else
-          # Create new release
+          echo "Creating new release..."
           gh release create "mc-${{ steps.mc-version.outputs.mc_version }}" \
             --title "Minecraft ${{ steps.mc-version.outputs.mc_version }} Build" \
             --notes "Automated build for Minecraft version ${{ steps.mc-version.outputs.mc_version }}" \
