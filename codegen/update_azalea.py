@@ -138,9 +138,9 @@ class AzaleaUpdater:
         with open(cargo_toml_path, 'r') as f:
             content = f.read()
         
-        # Update all rev = "..." entries regardless of crate name
+        # Update azalea revisions
         content = re.sub(
-            r'(rev\s*=\s*")[^"]*(")',
+            r'(azalea[^=]*=\s*{[^}]*rev\s*=\s*")[^"]*(")',
             rf'\g<1>{azalea_commit}\g<2>',
             content
         )
@@ -326,13 +326,11 @@ def main():
     
     print(json.dumps(result, indent=2))
 
-    
-
-    # with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-    #     f.write(f"status={result['status']}\n")
-    #     f.write(f"message={result['message']}\n")
-    #     if "mc_version" in result:
-    #         f.write(f"mc_version={result['mc_version']}\n")
+    with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+        f.write(f"status={result['status']}\n")
+        f.write(f"message={result['message']}\n")
+        if "mc_version" in result:
+            f.write(f"mc_version={result['mc_version']}\n")
     
     if result["status"] == "error":
         sys.exit(1)
