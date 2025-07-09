@@ -59,12 +59,17 @@ pub struct BotPackageInfo {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct AzaleaClientCargoToml {
-    pub package: AzaleaClientPackageInfo,
+pub struct AzaleaWorkspaceCargoToml {
+    pub workspace: AzaleaWorkspaceWorkspace,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct AzaleaClientPackageInfo {
+pub struct AzaleaWorkspaceWorkspace {
+    pub package: AzaleaWorkspacePackageInfo,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AzaleaWorkspacePackageInfo {
     pub edition: String,
 }
 
@@ -103,20 +108,23 @@ pub fn update_rust_toolchain(channel: &str) -> Result<()> {
         format!("[toolchain]\nchannel = \"{}\"\n", channel),
     )
     .context("Failed to write updated bot/rust-toolchain.toml")?;
-    
+
     // Install the toolchain
     let output = Command::new("rustup")
         .args(["toolchain", "install", channel])
         .output()
         .context("Failed to execute rustup toolchain install")?;
-    
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        println!("Warning: Failed to install toolchain {}: {}", channel, stderr);
+        println!(
+            "Warning: Failed to install toolchain {}: {}",
+            channel, stderr
+        );
     } else {
         println!("Successfully installed toolchain: {}", channel);
     }
-    
+
     Ok(())
 }
 
@@ -204,12 +212,12 @@ pub fn get_cargo_lock(azalea_path: &str) -> Result<CargoLock> {
 }
 
 pub fn get_azalea_client_edition(azalea_path: &str) -> Result<String> {
-    let cargo_toml_path = Path::new(azalea_path).join("azalea-client/Cargo.toml");
-    let cargo_toml_content = fs::read_to_string(&cargo_toml_path)
-        .context("Failed to read azalea-client/Cargo.toml")?;
-    let azalea_client_config: AzaleaClientCargoToml = toml::from_str(&cargo_toml_content)
-        .context("Failed to parse azalea-client/Cargo.toml")?;
-    Ok(azalea_client_config.package.edition)
+    let cargo_toml_path = Path::new(azalea_path).join("Cargo.toml");
+    let cargo_toml_content =
+        fs::read_to_string(&cargo_toml_path).context("Failed to read azalea-client/Cargo.toml")?;
+    let azalea_client_config: AzaleaWorkspaceCargoToml =
+        toml::from_str(&cargo_toml_content).context("Failed to parse azalea-client/Cargo.toml")?;
+    Ok(azalea_client_config.workspace.package.edition)
 }
 
 pub fn create_git_commit(rev: &str, mc_version: &str) -> Result<()> {
