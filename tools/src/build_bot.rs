@@ -63,6 +63,18 @@ fn main() -> Result<()> {
     println!("Building for target: {}", target);
     println!("Minecraft version: {}", mc_version);
 
+    // Read rust-toolchain.toml to get the correct toolchain
+    let toolchain_content = fs::read_to_string("bot/rust-toolchain.toml")
+        .context("Failed to read bot/rust-toolchain.toml")?;
+    
+    let channel = toolchain_content
+        .lines()
+        .find(|line| line.contains("channel = "))
+        .and_then(|line| line.split('"').nth(1))
+        .context("Failed to parse channel from rust-toolchain.toml")?;
+    
+    println!("Using Rust toolchain: {}", channel);
+
     // Build the bot
     let mut build_cmd = Command::new("cargo");
 
@@ -75,7 +87,7 @@ fn main() -> Result<()> {
     }
 
     build_cmd
-        .args(["build", "--release"])
+        .args([&format!("+{}", channel), "build", "--release"])
         .current_dir("bot");
 
     // Always add target
