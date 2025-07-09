@@ -1,10 +1,10 @@
 [dependencies]
-anyhow = "1.0.98"
 tokio = "1.45.1"
+anyhow = "1.0.98"
 
 [dependencies.azalea]
 git = "https://github.com/azalea-rs/azalea"
-rev = "5564d475a285c5b40ac74d7123091ce6c63f8c17"
+rev = "a060b739158d9ff2cc3d7ecb13e79de091f1f055"
 
 [dependencies.clap]
 features = ["derive"]
@@ -12,8 +12,8 @@ version = "4.5"
 
 [package]
 edition = "2024"
-name = "flex-update-mc-bot"
 version = "0.1.0"
+name = "flex-update-mc-bot"
 
 [package.metadata]
 mc_version = "1.21.6"
