@@ -5,6 +5,11 @@ on:
     # Run every day at 2 AM UTC
     - cron: '0 2 * * *'
   workflow_dispatch:
+    inputs:
+      next_rev:
+        description: 'Specific azalea revision to update to (optional)'
+        required: false
+        type: string
 
 jobs:
   update:
@@ -27,7 +32,11 @@ jobs:
     
     - name: Run update tool
       run: |
-        cargo run --bin update-bot
+        if [ -n "${{ inputs.next_rev }}" ]; then
+          cargo run --bin update-bot -- --next-rev "${{ inputs.next_rev }}"
+        else
+          cargo run --bin update-bot
+        fi
     
     - name: Push changes to main
       run: |

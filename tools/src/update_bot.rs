@@ -5,11 +5,14 @@ use tools::*;
 #[derive(Parser)]
 #[command(name = "update-bot")]
 #[command(about = "Update bot dependencies to next azalea revision")]
-struct Cli {}
+struct Cli {
+    #[arg(long, help = "Specific azalea revision to update to")]
+    next_rev: Option<String>,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let _cli = Cli::parse();
+    let cli = Cli::parse();
 
     // 1. Parse bot/Cargo.toml to get current azalea rev
     let mut bot_config = get_bot_config()?;
@@ -22,8 +25,13 @@ async fn main() -> Result<()> {
     let azalea_path = "./azalea-temp";
     clone_azalea_repo(azalea_path).await?;
 
-    // 3. Find next commit after current rev
-    let next_rev = find_next_commit(azalea_path, &bot_config.dependencies.azalea.rev)?;
+    // 3. Find next commit after current rev (or use provided rev)
+    let next_rev = if let Some(specified_rev) = cli.next_rev {
+        println!("Using specified revision: {}", specified_rev);
+        Some(specified_rev)
+    } else {
+        find_next_commit(azalea_path, &bot_config.dependencies.azalea.rev)?
+    };
 
     if let Some(next_rev) = next_rev {
         println!("Next azalea rev: {}", next_rev);

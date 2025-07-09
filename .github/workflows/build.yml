@@ -1,9 +1,10 @@
 name: Build
 
 on:
-  # push:
-  #   branches: [ main ]
-  pull_request:
+  workflow_run:
+    workflows: ["Update Bot"]
+    types:
+      - completed
     branches: [ main ]
 
 jobs:
