@@ -1,0 +1,18 @@
+[package]
+name = "flex-update-mc-bot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.75"
+tokio = "1.34.0"
+
+[dependencies.azalea-protocol]
+git = "https://github.com/azalea-rs/azalea"
+rev = "70cc93719f8139884ae0e48e58bbd099fe723149"
+package = "azalea-protocol"
+
+[dependencies.azalea-client]
+git = "https://github.com/azalea-rs/azalea"
+rev = "70cc93719f8139884ae0e48e58bbd099fe723149"
+package = "azalea-client"
