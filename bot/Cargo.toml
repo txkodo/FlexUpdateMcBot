@@ -18,4 +18,4 @@ version = "0.1.0"
 name = "flex-update-mc-bot"
 
 [package.metadata]
-mc_version = "1.20.5"
+mc_version = "1.20.6"
