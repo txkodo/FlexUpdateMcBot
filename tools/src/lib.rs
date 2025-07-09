@@ -140,29 +140,11 @@ pub async fn clone_azalea_repo(path: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn find_next_commit(repo_path: &str, current_rev: &str) -> Result<Option<String>> {
+pub fn get_latest_commit(repo_path: &str) -> Result<String> {
     let repo = Repository::open(repo_path)?;
-    let mut revwalk = repo.revwalk()?;
-    revwalk.push_head()?;
-
-    // Parse current_rev to Oid and hide it (and all older commits)
-    let current_oid =
-        git2::Oid::from_str(current_rev).context("Failed to parse current revision")?;
-    revwalk.hide(current_oid)?;
-
-    // Collect all commits newer than current_rev
-    let commits: Result<Vec<String>, _> = revwalk
-        .collect::<Result<Vec<_>, _>>()
-        .map(|oids| oids.into_iter().map(|oid| oid.to_string()).collect());
-
-    let commits = commits?;
-
-    // The next commit is the oldest among the newer commits (last in the list)
-    if !commits.is_empty() {
-        Ok(Some(commits.last().unwrap().clone()))
-    } else {
-        Ok(None) // current_rev is the latest commit
-    }
+    let head = repo.head()?;
+    let commit = head.peel_to_commit()?;
+    Ok(commit.id().to_string())
 }
 
 pub fn checkout_revision(repo_path: &str, rev: &str) -> Result<()> {

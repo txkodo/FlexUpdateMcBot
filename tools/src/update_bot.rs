@@ -27,18 +27,19 @@ async fn main() -> Result<()> {
     let azalea_path = "./azalea-temp";
     clone_azalea_repo(azalea_path).await?;
 
-    // 3. Find next commit after current rev (or use provided rev)
+    // 3. Get latest commit (or use provided rev)
     let next_rev = if let Some(specified_rev) = cli.next_rev {
         println!("Using specified revision: {}", specified_rev);
-        Some(specified_rev)
+        specified_rev
     } else {
-        find_next_commit(azalea_path, &bot_config.dependencies.azalea_protocol.rev)?
+        get_latest_commit(azalea_path)?
     };
 
-    if let Some(next_rev) = next_rev {
-        println!("Next azalea rev: {}", next_rev);
+    // Check if we need to update (compare with current rev)
+    if next_rev != bot_config.dependencies.azalea_protocol.rev {
+        println!("Latest azalea rev: {}", next_rev);
 
-        // Checkout the next revision
+        // Checkout the latest revision
         checkout_revision(azalea_path, &next_rev)?;
 
         // 4. Get Minecraft version from azalea Cargo.toml or use provided version
