@@ -77,19 +77,19 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Send webhook notification on failure
-      if: failure() && env.DISCORD_WEBHOOK_URL != ''
+      if: failure()
       run: |
         cd codegen
         python webhook_notifier.py \
-          --webhook-url "${{ env.DISCORD_WEBHOOK_URL }}" \
+          --webhook-url "${{ secrets.DISCORD_WEBHOOK_URL }}" \
           --message "Azalea update failed: ${{ steps.update.outputs.message || 'Unknown error' }}" \
           --type error
     
     - name: Send webhook notification on cargo update failure
-      if: steps.update.outputs.cargo_update_success == 'false' && env.DISCORD_WEBHOOK_URL != ''
+      if: steps.update.outputs.cargo_update_success == 'false'
       run: |
         cd codegen
         python webhook_notifier.py \
-          --webhook-url "${{ env.DISCORD_WEBHOOK_URL }}" \
+          --webhook-url "${{ secrets.DISCORD_WEBHOOK_URL }}" \
           --message "Azalea updated but cargo update failed for MC ${{ steps.update.outputs.mc_version }}" \
           --type warning
