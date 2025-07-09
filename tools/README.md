@@ -39,3 +39,15 @@ azaleaの更新に合わせてBOTの内容を更新して再ビルドをGitHub a
 1. 各OSでのビルド結果を{MC_VERSION}を含めたリリースとして公開する
 2. すでに公開済みの場合はファイルを上書きする
 -- ここまでgithub actionで記述
+
+
+# ビルドメモ
+
+## 1.19.2
+6f9ffccde3e9ffde57811db19dd184b16f56bc83
+nightly-2023-09-13
+
+## 1.19.3
+118f649cf7a6e401ee2eccd385b04a5478fdd311
+nightly-2023-03-13
+
