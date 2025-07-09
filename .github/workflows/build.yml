@@ -1,11 +1,11 @@
 name: Build
 
 on:
-  workflow_run:
-    workflows: ["Update Bot"]
-    types:
-      - completed
+  push:
     branches: [ main ]
+    paths:
+      - 'bot/Cargo.toml'
+      - 'bot/Cargo.lock'
 
 jobs:
   build:
