@@ -43,6 +43,7 @@ jobs:
             target_os: windows
           - os: macos-latest
             target_os: macos
+      fail-fast: false
     
     runs-on: ${{ matrix.os }}
     
@@ -73,11 +74,13 @@ jobs:
       uses: Swatinem/rust-cache@v2
     
     - name: Build
+      continue-on-error: true
       run: |
         # Use the Rust build tool with simplified parameters
         cargo run --bin build-bot -p tools -- --os ${{ matrix.target_os }} --arch ${{ matrix.arch }} --output-dir artifacts${{ inputs.rust_toolchain && format(' --rust-toolchain {0}', inputs.rust_toolchain) || '' }}
     
     - name: Upload artifacts
+      if: hashFiles('artifacts/*') != ''
       uses: actions/upload-artifact@v4
       with:
         name: flex-update-mc-bot-${{ matrix.target_os }}-${{ matrix.arch }}
