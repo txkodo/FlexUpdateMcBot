@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use git2::Repository;
+use git2::{Repository, Signature, Time};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -163,32 +163,36 @@ pub fn run_cargo_update() -> Result<()> {
 }
 
 pub fn create_git_commit(rev: &str, mc_version: &str) -> Result<()> {
-    // Add all changes
-    let add_output = Command::new("git")
-        .args(["add", "."])
-        .output()
-        .context("Failed to add changes to git")?;
-
-    if !add_output.status.success() {
-        anyhow::bail!(
-            "git add failed: {}",
-            String::from_utf8_lossy(&add_output.stderr)
-        );
-    }
-
-    // Create commit
+    let repo = Repository::open(".")?;
+    let mut index = repo.index()?;
+    
+    // Add all changes to index
+    index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
+    index.write()?;
+    
+    // Create signature
+    let signature = Signature::now("GitHub Action", "action@github.com")?;
+    
+    // Get tree from index
+    let tree_id = index.write_tree()?;
+    let tree = repo.find_tree(tree_id)?;
+    
+    // Get current HEAD commit as parent
+    let head = repo.head()?;
+    let parent_commit = head.peel_to_commit()?;
+    
+    // Create commit message
     let commit_message = format!("Update azalea to {} (MC {})", &rev[..8], mc_version);
-    let commit_output = Command::new("git")
-        .args(["commit", "-m", &commit_message])
-        .output()
-        .context("Failed to create git commit")?;
-
-    if !commit_output.status.success() {
-        anyhow::bail!(
-            "git commit failed: {}",
-            String::from_utf8_lossy(&commit_output.stderr)
-        );
-    }
-
+    
+    // Create commit
+    repo.commit(
+        Some("HEAD"),
+        &signature,
+        &signature,
+        &commit_message,
+        &tree,
+        &[&parent_commit],
+    )?;
+    
     Ok(())
 }
