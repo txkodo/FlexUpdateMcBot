@@ -39,15 +39,15 @@ jobs:
     
     - name: Run update tool
       run: |
-        args=""
+        args=()
         if [ -n "${{ inputs.next_rev }}" ]; then
-          args="$args --next-rev '${{ inputs.next_rev }}'"
+          args+=(--next-rev "${{ inputs.next_rev }}")
         fi
         if [ -n "${{ inputs.mc_version }}" ]; then
-          args="$args --mc-version '${{ inputs.mc_version }}'"
+          args+=(--mc-version "${{ inputs.mc_version }}")
         fi
-        if [ -n "$args" ]; then
-          cargo run --bin update-bot -- $args
+        if [ ${#args[@]} -gt 0 ]; then
+          cargo run --bin update-bot -- "${args[@]}"
         else
           cargo run --bin update-bot
         fi
