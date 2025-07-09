@@ -18,6 +18,9 @@ struct Cli {
     /// Output directory for artifacts
     #[arg(long, default_value = "artifacts")]
     output_dir: String,
+    /// Rust toolchain to use (overrides rust-toolchain.toml)
+    #[arg(long)]
+    rust_toolchain: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -63,17 +66,12 @@ fn main() -> Result<()> {
     println!("Building for target: {}", target);
     println!("Minecraft version: {}", mc_version);
 
-    // Read rust-toolchain.toml to get the correct toolchain
-    let toolchain_content = fs::read_to_string("bot/rust-toolchain.toml")
-        .context("Failed to read bot/rust-toolchain.toml")?;
-    
-    let channel = toolchain_content
-        .lines()
-        .find(|line| line.contains("channel = "))
-        .and_then(|line| line.split('"').nth(1))
-        .context("Failed to parse channel from rust-toolchain.toml")?;
-    
-    println!("Using Rust toolchain: {}", channel);
+    // Print toolchain info if specified
+    if let Some(toolchain) = &cli.rust_toolchain {
+        println!("Using Rust toolchain from argument: {}", toolchain);
+    } else {
+        println!("Using default Rust toolchain (from rust-toolchain.toml)");
+    }
 
     // Build the bot
     let mut build_cmd = Command::new("cargo");
@@ -86,9 +84,15 @@ fn main() -> Result<()> {
         );
     }
 
-    build_cmd
-        .args([&format!("+{}", channel), "build", "--release"])
-        .current_dir("bot");
+    if let Some(toolchain) = &cli.rust_toolchain {
+        build_cmd
+            .args([&format!("+{}", toolchain), "build", "--release"])
+            .current_dir("bot");
+    } else {
+        build_cmd
+            .args(["build", "--release"])
+            .current_dir("bot");
+    }
 
     // Always add target
     build_cmd.args(["--target", &target]);

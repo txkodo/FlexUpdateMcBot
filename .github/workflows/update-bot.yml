@@ -14,6 +14,10 @@ on:
         description: 'Minecraft version (optional)'
         required: false
         type: string
+      rust_toolchain:
+        description: 'Rust toolchain to use (optional)'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -73,6 +77,14 @@ jobs:
     - name: Trigger build workflow
       if: steps.update.outputs.has_changes == 'true'
       run: |
-        gh workflow run build.yml
+        args=()
+        if [ -n "${{ inputs.rust_toolchain }}" ]; then
+          args+=(-f "rust_toolchain=${{ inputs.rust_toolchain }}")
+        fi
+        if [ ${#args[@]} -gt 0 ]; then
+          gh workflow run build.yml "${args[@]}"
+        else
+          gh workflow run build.yml
+        fi
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

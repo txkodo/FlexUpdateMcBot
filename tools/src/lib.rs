@@ -53,8 +53,19 @@ pub struct AzaleaDependency {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BotPackageInfo {
     pub metadata: BotMetadata,
+    pub edition: String,
     #[serde(flatten)]
     pub others: HashMap<String, toml::Value>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AzaleaClientCargoToml {
+    pub package: AzaleaClientPackageInfo,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AzaleaClientPackageInfo {
+    pub edition: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -157,20 +168,6 @@ pub fn checkout_revision(repo_path: &str, rev: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn get_commit_date_minus_one_day(repo_path: &str, rev: &str) -> Result<String> {
-    let repo = Repository::open(repo_path)?;
-    let oid = git2::Oid::from_str(rev)?;
-    let commit = repo.find_commit(oid)?;
-    
-    let commit_time = commit.time();
-    let timestamp = commit_time.seconds() - 86400; // Subtract one day (24 * 60 * 60 seconds)
-    
-    let datetime = chrono::DateTime::from_timestamp(timestamp, 0)
-        .context("Failed to create datetime from timestamp")?;
-    
-    Ok(datetime.format("%Y-%m-%d").to_string())
-}
-
 pub fn get_minecraft_version(azalea_path: &str) -> Result<String> {
     let cargo_toml_path = format!("{}/Cargo.toml", azalea_path);
     let cargo_toml_content =
@@ -206,21 +203,13 @@ pub fn get_cargo_lock(azalea_path: &str) -> Result<CargoLock> {
     toml::from_str(&cargo_lock_content).context("Failed to parse azalea/Cargo.lock")
 }
 
-pub fn run_cargo_update(channel: &str) -> Result<()> {
-    let output = Command::new("cargo")
-        .args([&format!("+{}", channel), "update"])
-        .current_dir("bot")
-        .output()
-        .context("Failed to execute cargo update")?;
-
-    if !output.status.success() {
-        anyhow::bail!(
-            "cargo update failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-
-    Ok(())
+pub fn get_azalea_client_edition(azalea_path: &str) -> Result<String> {
+    let cargo_toml_path = Path::new(azalea_path).join("azalea-client/Cargo.toml");
+    let cargo_toml_content = fs::read_to_string(&cargo_toml_path)
+        .context("Failed to read azalea-client/Cargo.toml")?;
+    let azalea_client_config: AzaleaClientCargoToml = toml::from_str(&cargo_toml_content)
+        .context("Failed to parse azalea-client/Cargo.toml")?;
+    Ok(azalea_client_config.package.edition)
 }
 
 pub fn create_git_commit(rev: &str, mc_version: &str) -> Result<()> {

@@ -76,18 +76,16 @@ async fn main() -> Result<()> {
         bot_config.dependencies.tokio = tokio_version;
 
         bot_config.package.metadata.mc_version = mc_version.clone();
+
+        // 7. Sync edition with azalea-client
+        let azalea_edition = get_azalea_client_edition(azalea_path)?;
+        println!("Syncing edition to: {}", azalea_edition);
+        bot_config.package.edition = azalea_edition;
+
         update_bot_config(&bot_config)?;
-
-        let commit_yyyy_mm_dd = get_commit_date_minus_one_day(azalea_path, &next_rev)?;
-        let channel = format!("nightly-{}", commit_yyyy_mm_dd);
-
-        update_rust_toolchain(&channel)?;
 
         // 6. Copy azalea/Cargo.lock to bot/Cargo.lock
         copy_cargo_lock(azalea_path)?;
-
-        // 7. Run cargo update in bot directory
-        run_cargo_update(&channel)?;
 
         // 8. Create git commit
         create_git_commit(&next_rev, &mc_version)?;
