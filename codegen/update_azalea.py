@@ -42,7 +42,7 @@ class AzaleaUpdater:
         response.raise_for_status()
         return response.text
     
-    def extract_mc_version(self, cargo_toml_content: str) -> str:
+    def extract_mc_version(self, cargo_toml_content: str, commit_hash: str) -> str:
         """Extract minecraft version from azalea Cargo.toml"""
         cargo_data = toml.loads(cargo_toml_content)
         version = cargo_data["workspace"]["package"]["version"]
@@ -61,6 +61,37 @@ class AzaleaUpdater:
                 pass
             raise ValueError(f"Could not extract MC version from: {version}")
         return match.group(1)
+    
+    def get_azalea_client_cargo_toml(self, commit_hash: str) -> str:
+        """Get azalea-client Cargo.toml content from azalea repository"""
+        response = requests.get(f"https://raw.githubusercontent.com/azalea-rs/azalea/{commit_hash}/azalea-client/Cargo.toml")
+        response.raise_for_status()
+        return response.text
+    
+    def extract_rust_edition(self, cargo_toml_content: str, client_cargo_toml_content: str) -> str:
+        """Extract rust edition from azalea Cargo.toml"""
+        # First try to get from azalea-client/Cargo.toml
+        try:
+            client_cargo_data = toml.loads(client_cargo_toml_content)
+            if "package" in client_cargo_data and "edition" in client_cargo_data["package"]:
+                edition = client_cargo_data["package"]["edition"]
+                if isinstance(edition, str):
+                    return edition
+        except Exception:
+            pass
+        
+        # Fallback to workspace.package.edition in main Cargo.toml
+        try:
+            cargo_data = toml.loads(cargo_toml_content)
+            if "workspace" in cargo_data and "package" in cargo_data["workspace"] and "edition" in cargo_data["workspace"]["package"]:
+                edition = cargo_data["workspace"]["package"]["edition"]
+                if isinstance(edition, str):
+                    return edition
+        except Exception:
+            pass
+        
+        # Default edition if not found
+        return "2021"
     
     def get_current_azalea_oid(self) -> str:
         """Get current azalea OID from tracking file"""
@@ -111,6 +142,24 @@ class AzaleaUpdater:
             r'(azalea[^=]*=\s*{[^}]*rev\s*=\s*")[^"]*(")',
             rf'\g<1>{azalea_commit}\g<2>',
             content
+        )
+        
+        with open(cargo_toml_path, 'w') as f:
+            f.write(content)
+    
+    def update_rust_edition(self, mc_version: str, edition: str):
+        """Update rust edition in Cargo.toml"""
+        cargo_toml_path = self.versions_dir / mc_version / "Cargo.toml"
+        
+        with open(cargo_toml_path, 'r') as f:
+            content = f.read()
+        
+        # Update package.edition
+        content = re.sub(
+            r'(\[package\].*?\nedition\s*=\s*")[^"]*(")',
+            rf'\g<1>{edition}\g<2>',
+            content,
+            flags=re.DOTALL
         )
         
         with open(cargo_toml_path, 'w') as f:
@@ -221,9 +270,11 @@ class AzaleaUpdater:
             commit_info = self.get_commit_info(commit_hash)
             cargo_toml = self.get_azalea_cargo_toml(commit_hash)
             cargo_lock = self.get_azalea_cargo_lock(commit_hash)
+            client_cargo_toml = self.get_azalea_client_cargo_toml(commit_hash)
             
-            # Extract MC version
-            mc_version = self.extract_mc_version(cargo_toml)
+            # Extract MC version and rust edition
+            mc_version = self.extract_mc_version(cargo_toml, commit_hash)
+            rust_edition = self.extract_rust_edition(cargo_toml, client_cargo_toml)
             current_mc_version = self.get_current_mc_version()
             
             # Create version directory if it doesn't exist
@@ -237,6 +288,7 @@ class AzaleaUpdater:
             # Update files
             self.update_mc_version(mc_version)
             self.update_cargo_toml_revisions(mc_version, commit_hash)
+            self.update_rust_edition(mc_version, rust_edition)
             self.update_dependency_versions(mc_version, cargo_lock)
             self.update_cargo_lock(mc_version, cargo_lock)
             self.update_rust_toolchain(mc_version, commit_info["commit"]["committer"]["date"])
