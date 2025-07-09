@@ -206,9 +206,9 @@ pub fn get_cargo_lock(azalea_path: &str) -> Result<CargoLock> {
     toml::from_str(&cargo_lock_content).context("Failed to parse azalea/Cargo.lock")
 }
 
-pub fn run_cargo_update() -> Result<()> {
+pub fn run_cargo_update(channel: &str) -> Result<()> {
     let output = Command::new("cargo")
-        .args(["update"])
+        .args([&format!("+{}", channel), "update"])
         .current_dir("bot")
         .output()
         .context("Failed to execute cargo update")?;

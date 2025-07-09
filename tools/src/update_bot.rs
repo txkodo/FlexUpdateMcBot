@@ -79,14 +79,15 @@ async fn main() -> Result<()> {
         update_bot_config(&bot_config)?;
 
         let commit_yyyy_mm_dd = get_commit_date_minus_one_day(azalea_path, &next_rev)?;
+        let channel = format!("nightly-{}", commit_yyyy_mm_dd);
 
-        update_rust_toolchain(&format!("nightly-{}", commit_yyyy_mm_dd))?;
+        update_rust_toolchain(&channel)?;
 
         // 6. Copy azalea/Cargo.lock to bot/Cargo.lock
         copy_cargo_lock(azalea_path)?;
 
         // 7. Run cargo update in bot directory
-        run_cargo_update()?;
+        run_cargo_update(&channel)?;
 
         // 8. Create git commit
         create_git_commit(&next_rev, &mc_version)?;
