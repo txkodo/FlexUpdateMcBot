@@ -1,5 +1,6 @@
 use anyhow::Result;
-use azalea::{prelude::*, protocol::ServerAddress};
+use azalea_client::{Account, Client};
+use azalea_protocol::ServerAddress;
 use clap::Parser;
 
 #[derive(Parser)]
@@ -27,19 +28,22 @@ struct Args {
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    println!(
-        "Connecting to {}:{} with username {} using Minecraft version {}",
-        args.host, args.port, args.username, args.version
-    );
+    let (_client, mut event) = Client::join(
+        &Account::offline(&args.username),
+        ServerAddress {
+            host: args.host,
+            port: args.port,
+        },
+    )
+    .await?;
 
-    ClientBuilder::new()
-        .start(
-            Account::offline(&args.username),
-            ServerAddress {
-                host: args.host,
-                port: args.port,
-            },
-        )
-        .await
-        .unwrap();
+    while let Some(e) = event.recv().await {
+        match e {
+            azalea_client::Event::Login => {
+                println!(r#"{{"event":"login"}}"#);
+            }
+            _ => {}
+        }
+    }
+    Ok(())
 }

@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
     let mut bot_config = get_bot_config()?;
     println!(
         "Current azalea rev: {}",
-        &bot_config.dependencies.azalea.rev
+        &bot_config.dependencies.azalea_protocol.rev
     );
 
     // 2. Clone azalea repository
@@ -32,7 +32,7 @@ async fn main() -> Result<()> {
         println!("Using specified revision: {}", specified_rev);
         Some(specified_rev)
     } else {
-        find_next_commit(azalea_path, &bot_config.dependencies.azalea.rev)?
+        find_next_commit(azalea_path, &bot_config.dependencies.azalea_protocol.rev)?
     };
 
     if let Some(next_rev) = next_rev {
@@ -52,7 +52,8 @@ async fn main() -> Result<()> {
         };
 
         // 5. Update bot/Cargo.toml
-        bot_config.dependencies.azalea.rev = next_rev.clone();
+        bot_config.dependencies.azalea_protocol.rev = next_rev.clone();
+        bot_config.dependencies.azalea_client.rev = next_rev.clone();
         bot_config.package.metadata.mc_version = mc_version.clone();
         update_bot_config(&bot_config)?;
 

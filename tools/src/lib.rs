@@ -32,7 +32,10 @@ pub struct BotCargoToml {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BotDependencies {
-    pub azalea: AzaleaDependency,
+    #[serde(rename = "azalea-protocol")]
+    pub azalea_protocol: AzaleaDependency,
+    #[serde(rename = "azalea-client")]
+    pub azalea_client: AzaleaDependency,
     #[serde(flatten)]
     pub others: HashMap<String, toml::Value>,
 }
@@ -41,6 +44,8 @@ pub struct BotDependencies {
 pub struct AzaleaDependency {
     pub git: String,
     pub rev: String,
+    #[serde(flatten)]
+    pub others: HashMap<String, toml::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -165,25 +170,25 @@ pub fn run_cargo_update() -> Result<()> {
 pub fn create_git_commit(rev: &str, mc_version: &str) -> Result<()> {
     let repo = Repository::open(".")?;
     let mut index = repo.index()?;
-    
+
     // Add all changes to index
     index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
     index.write()?;
-    
+
     // Create signature
     let signature = Signature::now("GitHub Action", "action@github.com")?;
-    
+
     // Get tree from index
     let tree_id = index.write_tree()?;
     let tree = repo.find_tree(tree_id)?;
-    
+
     // Get current HEAD commit as parent
     let head = repo.head()?;
     let parent_commit = head.peel_to_commit()?;
-    
+
     // Create commit message
     let commit_message = format!("Update azalea to {} (MC {})", &rev[..8], mc_version);
-    
+
     // Create commit
     repo.commit(
         Some("HEAD"),
@@ -193,6 +198,6 @@ pub fn create_git_commit(rev: &str, mc_version: &str) -> Result<()> {
         &tree,
         &[&parent_commit],
     )?;
-    
+
     Ok(())
 }
