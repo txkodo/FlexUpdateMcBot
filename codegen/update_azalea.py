@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Optional, Dict, Any
 import requests
-import toml
+import tomllib
 
 class AzaleaUpdater:
     def __init__(self):
@@ -44,23 +44,24 @@ class AzaleaUpdater:
     
     def extract_mc_version(self, cargo_toml_content: str, commit_hash: str) -> str:
         """Extract minecraft version from azalea Cargo.toml"""
-        cargo_data = toml.loads(cargo_toml_content)
-        version = cargo_data["workspace"]["package"]["version"]
-        # Extract MC version from format like "0.13.0+mc1.21.7"
-        match = re.search(r'\+mc(.+)', version)
-        if not match:
-            # フォールバック: azaleaのREADMEから抽出を試行
-            try:
-                response = requests.get(f"https://raw.githubusercontent.com/azalea-rs/azalea/{commit_hash}/README.md")
-                response.raise_for_status()
-                readme_content = response.text
-                readme_match = re.search(r'Currently supported Minecraft version:\s*`?([0-9]+\.[0-9]+(?:\.[0-9]+)?)`?', readme_content, re.IGNORECASE)
-                if readme_match:
-                    return readme_match.group(1)
-            except Exception:
-                pass
-            raise ValueError(f"Could not extract MC version from: {version}")
-        return match.group(1)
+        cargo_data = tomllib.loads(cargo_toml_content)
+        if "workspace" in cargo_data and "package" in cargo_data["workspace"] and "version" in cargo_data["workspace"]["package"]:
+            version = cargo_data["workspace"]["package"]["version"]
+            # Extract MC version from format like "0.13.0+mc1.21.7"
+            match = re.search(r'\+mc(.+)', version)
+            if match:
+                return match.group(1)
+        # フォールバック: azaleaのREADMEから抽出を試行
+        try:
+            response = requests.get(f"https://raw.githubusercontent.com/azalea-rs/azalea/{commit_hash}/README.md")
+            response.raise_for_status()
+            readme_content = response.text
+            readme_match = re.search(r'Currently supported Minecraft version:\s*`?([0-9]+\.[0-9]+(?:\.[0-9]+)?)`?', readme_content, re.IGNORECASE)
+            if readme_match:
+                return readme_match.group(1)
+        except Exception:
+            pass
+        raise ValueError(f"Could not extract MC version from: {version}")
     
     def get_azalea_client_cargo_toml(self, commit_hash: str) -> str:
         """Get azalea-client Cargo.toml content from azalea repository"""
@@ -72,7 +73,7 @@ class AzaleaUpdater:
         """Extract rust edition from azalea Cargo.toml"""
         # First try to get from azalea-client/Cargo.toml
         try:
-            client_cargo_data = toml.loads(client_cargo_toml_content)
+            client_cargo_data = tomllib.loads(client_cargo_toml_content)
             if "package" in client_cargo_data and "edition" in client_cargo_data["package"]:
                 edition = client_cargo_data["package"]["edition"]
                 if isinstance(edition, str):
@@ -82,7 +83,7 @@ class AzaleaUpdater:
         
         # Fallback to workspace.package.edition in main Cargo.toml
         try:
-            cargo_data = toml.loads(cargo_toml_content)
+            cargo_data = tomllib.loads(cargo_toml_content)
             if "workspace" in cargo_data and "package" in cargo_data["workspace"] and "edition" in cargo_data["workspace"]["package"]:
                 edition = cargo_data["workspace"]["package"]["edition"]
                 if isinstance(edition, str):
@@ -137,9 +138,9 @@ class AzaleaUpdater:
         with open(cargo_toml_path, 'r') as f:
             content = f.read()
         
-        # Update azalea revisions
+        # Update all rev = "..." entries regardless of crate name
         content = re.sub(
-            r'(azalea[^=]*=\s*{[^}]*rev\s*=\s*")[^"]*(")',
+            r'(rev\s*=\s*")[^"]*(")',
             rf'\g<1>{azalea_commit}\g<2>',
             content
         )
@@ -177,19 +178,25 @@ class AzaleaUpdater:
         with open(cargo_toml_path, 'r') as f:
             content = f.read()
         
-        if anyhow_version:
-            content = re.sub(
-                r'(anyhow\s*=\s*")[^"]*(")',
-                rf'\g<1>{anyhow_version}\g<2>',
-                content
-            )
+        # Parse TOML to validate structure
+        cargo_data = tomllib.loads(content)
         
-        if tokio_version:
-            content = re.sub(
-                r'(tokio\s*=\s*")[^"]*(")',
-                rf'\g<1>{tokio_version}\g<2>',
-                content
-            )
+        # Update versions using regex (preserving formatting)
+        for section_name in ['dependencies', 'dev-dependencies', 'build-dependencies']:
+            if section_name in cargo_data:
+                if anyhow_version and 'anyhow' in cargo_data[section_name]:
+                    content = re.sub(
+                        r'(anyhow\s*=\s*")[^"]*(")',
+                        rf'\g<1>{anyhow_version}\g<2>',
+                        content
+                    )
+                
+                if tokio_version and 'tokio' in cargo_data[section_name]:
+                    content = re.sub(
+                        r'(tokio\s*=\s*")[^"]*(")',
+                        rf'\g<1>{tokio_version}\g<2>',
+                        content
+                    )
         
         with open(cargo_toml_path, 'w') as f:
             f.write(content)
@@ -319,11 +326,13 @@ def main():
     
     print(json.dumps(result, indent=2))
 
-    with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-        f.write(f"status={result['status']}\n")
-        f.write(f"message={result['message']}\n")
-        if "mc_version" in result:
-            f.write(f"mc_version={result['mc_version']}\n")
+    
+
+    # with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+    #     f.write(f"status={result['status']}\n")
+    #     f.write(f"message={result['message']}\n")
+    #     if "mc_version" in result:
+    #         f.write(f"mc_version={result['mc_version']}\n")
     
     if result["status"] == "error":
         sys.exit(1)

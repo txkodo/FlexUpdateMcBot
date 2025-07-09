@@ -37,11 +37,10 @@ jobs:
     - name: Update azalea
       id: update
       run: |
-        cd codegen
         if [ -n "${{ inputs.commit_hash }}" ]; then
-          python update_azalea.py --commit "${{ inputs.commit_hash }}"
+          python codegen/update_azalea.py --commit "${{ inputs.commit_hash }}"
         else
-          python update_azalea.py
+          python codegen/update_azalea.py
         fi
 
     - name: Read rust toolchain

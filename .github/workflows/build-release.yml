@@ -124,3 +124,13 @@ jobs:
       with:
         name: flex-update-mc-bot-${{ inputs.mc_version }}-${{ matrix.platform }}${{ matrix.ext }}
         path: flex-update-mc-bot-${{ inputs.mc_version }}-${{ matrix.platform }}${{ matrix.ext }}
+    
+    - name: Discord notification on failure
+      if: failure()
+      run: |
+        curl -H "Content-Type: application/json" \
+             -d '{
+               "content": "🔴 **Build Failed**\n**Version:** ${{ inputs.mc_version }}\n**Platform:** ${{ matrix.platform }}\n**Target:** ${{ matrix.target }}\n**Repository:** ${{ github.repository }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+             }' \
+             ${{ secrets.DISCORD_WEBHOOK_URL }}
+      shell: bash
