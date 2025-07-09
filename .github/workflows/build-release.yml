@@ -46,28 +46,30 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: bot
-            asset_name: bot-linux-x64
+            artifact_name: flex-update-mc-bot
+            platform: linux-x64
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            artifact_name: bot
-            asset_name: bot-linux-arm64
+            artifact_name: flex-update-mc-bot
+            platform: linux-arm64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: bot.exe
-            asset_name: bot-windows-x64.exe
+            artifact_name: flex-update-mc-bot.exe
+            platform: windows-x64
+            ext: .exe
           - os: windows-latest
             target: aarch64-pc-windows-msvc
-            artifact_name: bot.exe
-            asset_name: bot-windows-arm64.exe
+            artifact_name: flex-update-mc-bot.exe
+            platform: windows-arm64
+            ext: .exe
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: bot
-            asset_name: bot-macos-x64
+            artifact_name: flex-update-mc-bot
+            platform: macos-x64
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: bot
-            asset_name: bot-macos-arm64
+            artifact_name: flex-update-mc-bot
+            platform: macos-arm64
     
     runs-on: ${{ matrix.os }}
     permissions:
@@ -102,17 +104,23 @@ jobs:
         # Build with the specified target
         cargo build --release --target ${{ matrix.target }}
         
+        # Set asset name with MC version
+        ASSET_NAME="flex-update-mc-bot-${{ inputs.mc_version }}-${{ matrix.platform }}${{ matrix.ext }}"
+        
         # Copy the built binary to workspace root
-        cp "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" "../../${{ matrix.asset_name }}"
+        cp "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" "../../$ASSET_NAME"
+        
+        # Set output for next steps
+        echo "ASSET_NAME=$ASSET_NAME" >> $GITHUB_ENV
       shell: bash
     
     - name: Upload to release
-      run: gh release upload "v${{ inputs.mc_version }}" "${{ matrix.asset_name }}" --clobber
+      run: gh release upload "v${{ inputs.mc_version }}" "$ASSET_NAME" --clobber
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.asset_name }}
-        path: ${{ matrix.asset_name }}
+        name: ${{ env.ASSET_NAME }}
+        path: ${{ env.ASSET_NAME }}
