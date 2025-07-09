@@ -1,32 +1,38 @@
 use anyhow::Result;
 use azalea_client::{Account, Client};
 use azalea_protocol::ServerAddress;
-use clap::Parser;
+use std::env;
 
-#[derive(Parser)]
-#[command(name = "minecraft-bot")]
-#[command(about = "A Minecraft bot that connects to servers using ViaVersion")]
 struct Args {
-    /// Username for the bot
-    #[arg(short, long)]
     username: String,
-
-    /// Server host address
-    #[arg(short = 'H', long)]
     host: String,
-
-    /// Server port
-    #[arg(short, long)]
     port: u16,
+}
 
-    /// Minecraft version to use
-    #[arg(short, long)]
-    version: String,
+impl Args {
+    fn parse() -> Result<Self> {
+        let args: Vec<String> = env::args().collect();
+
+        if args.len() != 5 {
+            eprintln!("Usage: {} <username> <host> <port>", args[0]);
+            std::process::exit(1);
+        }
+
+        let port = args[3]
+            .parse::<u16>()
+            .map_err(|_| anyhow::anyhow!("Invalid port number: {}", args[3]))?;
+
+        Ok(Args {
+            username: args[1].clone(),
+            host: args[2].clone(),
+            port
+        })
+    }
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let args = Args::parse();
+    let args = Args::parse()?;
 
     let (_client, mut event) = Client::join(
         &Account::offline(&args.username),

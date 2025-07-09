@@ -36,6 +36,8 @@ pub struct BotDependencies {
     pub azalea_protocol: AzaleaDependency,
     #[serde(rename = "azalea-client")]
     pub azalea_client: AzaleaDependency,
+    pub anyhow: String,
+    pub tokio: String,
     #[serde(flatten)]
     pub others: HashMap<String, toml::Value>,
 }
@@ -62,6 +64,16 @@ pub struct BotMetadata {
     pub others: HashMap<String, toml::Value>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CargoLock {
+    pub package: Vec<CargoLockPackage>,
+}
+#[derive(Debug, Deserialize)]
+pub struct CargoLockPackage {
+    pub name: String,
+    pub version: String,
+}
+
 pub fn get_bot_config() -> Result<BotCargoToml> {
     let cargo_toml_content =
         fs::read_to_string("bot/Cargo.toml").context("Failed to read bot/Cargo.toml")?;
@@ -71,6 +83,15 @@ pub fn get_bot_config() -> Result<BotCargoToml> {
 pub fn update_bot_config(bot_config: &BotCargoToml) -> Result<()> {
     fs::write("bot/Cargo.toml", toml::to_string(bot_config)?)
         .context("Failed to write updated bot/Cargo.toml")?;
+    Ok(())
+}
+
+pub fn update_rust_toolchain(channel: &str) -> Result<()> {
+    fs::write(
+        "bot/rust-toolchain.toml",
+        format!("[toolchain]\nchannel = \"{}\"\n", channel),
+    )
+    .context("Failed to write updated bot/Cargo.toml")?;
     Ok(())
 }
 
@@ -122,6 +143,20 @@ pub fn checkout_revision(repo_path: &str, rev: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn get_commit_date_minus_one_day(repo_path: &str, rev: &str) -> Result<String> {
+    let repo = Repository::open(repo_path)?;
+    let oid = git2::Oid::from_str(rev)?;
+    let commit = repo.find_commit(oid)?;
+    
+    let commit_time = commit.time();
+    let timestamp = commit_time.seconds() - 86400; // Subtract one day (24 * 60 * 60 seconds)
+    
+    let datetime = chrono::DateTime::from_timestamp(timestamp, 0)
+        .context("Failed to create datetime from timestamp")?;
+    
+    Ok(datetime.format("%Y-%m-%d").to_string())
+}
+
 pub fn get_minecraft_version(azalea_path: &str) -> Result<String> {
     let cargo_toml_path = format!("{}/Cargo.toml", azalea_path);
     let cargo_toml_content =
@@ -148,6 +183,13 @@ pub fn copy_cargo_lock(azalea_path: &str) -> Result<()> {
     fs::copy(&source, dest).context("Failed to copy Cargo.lock from azalea to bot")?;
 
     Ok(())
+}
+
+pub fn get_cargo_lock(azalea_path: &str) -> Result<CargoLock> {
+    let cargo_lock_path = format!("{}/Cargo.lock", azalea_path);
+    let cargo_lock_content =
+        fs::read_to_string(&cargo_lock_path).context("Failed to read azalea/Cargo.lock")?;
+    toml::from_str(&cargo_lock_content).context("Failed to parse azalea/Cargo.lock")
 }
 
 pub fn run_cargo_update() -> Result<()> {

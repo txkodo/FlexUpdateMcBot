@@ -54,8 +54,33 @@ async fn main() -> Result<()> {
         // 5. Update bot/Cargo.toml
         bot_config.dependencies.azalea_protocol.rev = next_rev.clone();
         bot_config.dependencies.azalea_client.rev = next_rev.clone();
+
+        let cargo_lock = get_cargo_lock(azalea_path)?;
+
+        // Find anyhow and tokio versions from Cargo.lock
+        let anyhow_version = cargo_lock
+            .package
+            .iter()
+            .find(|p| p.name == "anyhow")
+            .map(|p| p.version.clone())
+            .unwrap();
+
+        let tokio_version = cargo_lock
+            .package
+            .iter()
+            .find(|p| p.name == "tokio")
+            .map(|p| p.version.clone())
+            .unwrap();
+
+        bot_config.dependencies.anyhow = anyhow_version;
+        bot_config.dependencies.tokio = tokio_version;
+
         bot_config.package.metadata.mc_version = mc_version.clone();
         update_bot_config(&bot_config)?;
+
+        let commit_yyyy_mm_dd = get_commit_date_minus_one_day(azalea_path, &next_rev)?;
+
+        update_rust_toolchain(&format!("nightly-{}", commit_yyyy_mm_dd))?;
 
         // 6. Copy azalea/Cargo.lock to bot/Cargo.lock
         copy_cargo_lock(azalea_path)?;

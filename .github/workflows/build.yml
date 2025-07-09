@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       mc_version: ${{ steps.mc-version.outputs.mc_version }}
+      rust_channel: ${{ steps.rust-channel.outputs.channel }}
     
     steps:
     - name: Checkout repository
@@ -23,6 +24,17 @@ jobs:
         cd bot
         MC_VERSION=$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].metadata.mc_version // "unknown"')
         echo "mc_version=${MC_VERSION}" >> $GITHUB_OUTPUT
+    
+    - name: Get Rust toolchain channel
+      id: rust-channel
+      run: |
+        cd bot
+        if [ -f "rust-toolchain.toml" ]; then
+          CHANNEL=$(grep 'channel = ' rust-toolchain.toml | sed 's/.*channel = "\(.*\)".*/\1/')
+          echo "channel=${CHANNEL}" >> $GITHUB_OUTPUT
+        else
+          echo "channel=nightly" >> $GITHUB_OUTPUT
+        fi
 
   build:
     needs: get-version
@@ -47,7 +59,7 @@ jobs:
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: nightly
+        toolchain: ${{ needs.get-version.outputs.rust_channel }}
         override: true
     
     - name: Install cross-compilation tools
