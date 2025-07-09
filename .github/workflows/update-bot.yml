@@ -29,7 +29,7 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Install Rust
+    - name: Install Rust (nightly for tools)
       uses: actions-rs/toolchain@v1
       with:
         toolchain: nightly
@@ -62,11 +62,10 @@ jobs:
           echo "has_changes=false" >> $GITHUB_OUTPUT
         fi
     
+    
     - name: Push changes to main
       if: steps.update.outputs.has_changes == 'true'
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
         git push origin main
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

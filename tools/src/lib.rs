@@ -91,7 +91,21 @@ pub fn update_rust_toolchain(channel: &str) -> Result<()> {
         "bot/rust-toolchain.toml",
         format!("[toolchain]\nchannel = \"{}\"\n", channel),
     )
-    .context("Failed to write updated bot/Cargo.toml")?;
+    .context("Failed to write updated bot/rust-toolchain.toml")?;
+    
+    // Install the toolchain
+    let output = Command::new("rustup")
+        .args(["toolchain", "install", channel])
+        .output()
+        .context("Failed to execute rustup toolchain install")?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        println!("Warning: Failed to install toolchain {}: {}", channel, stderr);
+    } else {
+        println!("Successfully installed toolchain: {}", channel);
+    }
+    
     Ok(())
 }
 
