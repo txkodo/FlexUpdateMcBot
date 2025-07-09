@@ -42,6 +42,10 @@ azaleaの更新に合わせてBOTの内容を更新して再ビルドをGitHub a
 
 
 # ビルドメモ
+cargo run -p tools --bin update-bot -- --next-rev 118f649cf7a6e401ee2eccd385b04a5478fdd311 --mc-version 1.19.3
+cargo run -p tools --bin build-bot -- --os linux --arch x64 --rust-toolchain nightly-2023-03-13
+
+
 
 ## 1.19.2
 6f9ffccde3e9ffde57811db19dd184b16f56bc83
@@ -50,4 +54,8 @@ nightly-2023-09-13
 ## 1.19.3
 118f649cf7a6e401ee2eccd385b04a5478fdd311
 nightly-2023-03-13
+
+## 1.19.4
+587ff91f16a3cae0bfe89e6781ad519ad66980b6
+nightly-2023-05-08
 
