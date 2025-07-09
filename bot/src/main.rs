@@ -30,7 +30,7 @@ async fn main() -> Result<()> {
     let args = Args::parse()?;
 
     let (_client, mut event) = Client::join(
-        &Account::offline(&args.username),
+        Account::offline(&args.username),
         ServerAddress {
             host: args.host,
             port: args.port,
