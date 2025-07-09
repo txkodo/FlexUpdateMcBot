@@ -49,6 +49,16 @@ class AzaleaUpdater:
         # Extract MC version from format like "0.13.0+mc1.21.7"
         match = re.search(r'\+mc(.+)', version)
         if not match:
+            # フォールバック: azaleaのREADMEから抽出を試行
+            try:
+                response = requests.get(f"https://raw.githubusercontent.com/azalea-rs/azalea/{commit_hash}/README.md")
+                response.raise_for_status()
+                readme_content = response.text
+                readme_match = re.search(r'Currently supported Minecraft version:\s*`?([0-9]+\.[0-9]+(?:\.[0-9]+)?)`?', readme_content, re.IGNORECASE)
+                if readme_match:
+                    return readme_match.group(1)
+            except Exception:
+                pass
             raise ValueError(f"Could not extract MC version from: {version}")
         return match.group(1)
     
