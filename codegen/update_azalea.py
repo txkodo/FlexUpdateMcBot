@@ -140,7 +140,7 @@ class AzaleaUpdater:
         
         # Update azalea revisions
         content = re.sub(
-            r'(azalea[^=]*=\s*{[^}]*rev\s*=\s*")[^"]*(")',
+            r'(rev\s*=\s*")[^"]*(")',
             rf'\g<1>{azalea_commit}\g<2>',
             content
         )
