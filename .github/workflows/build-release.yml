@@ -41,6 +41,7 @@ jobs:
   build:
     needs: create-release
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
