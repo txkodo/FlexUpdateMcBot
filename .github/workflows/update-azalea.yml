@@ -1,0 +1,95 @@
+name: Update Azalea
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      commit_hash:
+        description: 'Specific azalea commit hash to update to'
+        required: false
+        type: string
+
+jobs:
+  update-azalea:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install Python dependencies
+      run: |
+        cd codegen
+        pip install -r requirements.txt
+    
+    - name: Update azalea
+      id: update
+      run: |
+        cd codegen
+        if [ -n "${{ inputs.commit_hash }}" ]; then
+          python update_azalea.py --commit "${{ inputs.commit_hash }}"
+        else
+          python update_azalea.py
+        fi
+
+    - name: Read rust toolchain
+      id: read_toolchain
+      if: steps.update.outputs.status == 'updated'
+      run: echo "toolchain=$(cat versions/${{ steps.update.outputs.mc_version }}/rust-toolchain)" >> $GITHUB_OUTPUT
+
+    - name: Install Rust
+      if: steps.update.outputs.status == 'updated'
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ steps.read_toolchain.outputs.toolchain }}
+
+    - name: Setup Rust and run cargo update
+      if: steps.update.outputs.status == 'updated' && steps.update.outputs.cargo_update_success == 'false'
+      run: |
+        cd versions/${{ steps.update.outputs.mc_version }}
+        cargo update
+    
+    - name: Commit and push changes
+      if: steps.update.outputs.status == 'updated'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .
+        git commit -m "${{ steps.update.outputs.message }}" || exit 0
+        git push
+    
+    - name: Trigger build workflow
+      if: steps.update.outputs.status == 'updated'
+      run: gh workflow run build-release.yml -f mc_version="${{ steps.update.outputs.mc_version }}"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Send webhook notification on failure
+      if: failure() && env.DISCORD_WEBHOOK_URL != ''
+      run: |
+        cd codegen
+        python webhook_notifier.py \
+          --webhook-url "${{ env.DISCORD_WEBHOOK_URL }}" \
+          --message "Azalea update failed: ${{ steps.update.outputs.message || 'Unknown error' }}" \
+          --type error
+    
+    - name: Send webhook notification on cargo update failure
+      if: steps.update.outputs.cargo_update_success == 'false' && env.DISCORD_WEBHOOK_URL != ''
+      run: |
+        cd codegen
+        python webhook_notifier.py \
+          --webhook-url "${{ env.DISCORD_WEBHOOK_URL }}" \
+          --message "Azalea updated but cargo update failed for MC ${{ steps.update.outputs.mc_version }}" \
+          --type warning

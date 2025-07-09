@@ -1,3 +1,8 @@
+[package]
+name = "flex-update-mc-bot"
+version = "0.1.0"
+edition = "2024"
+
 [dependencies]
 anyhow = "1.0.98"
 tokio = "1.45.1"
@@ -11,11 +16,3 @@ package = "azalea-protocol"
 git = "https://github.com/azalea-rs/azalea"
 rev = "ebc2e0c067d8b2c901ae02e032159e2c80eac7bc"
 package = "azalea-client"
-
-[package]
-edition = "2024"
-version = "0.1.0"
-name = "flex-update-mc-bot"
-
-[package.metadata]
-mc_version = "1.21.7"

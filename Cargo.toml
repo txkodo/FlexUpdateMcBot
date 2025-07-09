@@ -1,4 +1,0 @@
-[workspace]
-members = ["tools"] 
-exclude = ["bot","azalea-temp"]
-resolver = "2"
