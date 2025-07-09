@@ -67,8 +67,10 @@ async fn main() -> Result<()> {
         create_git_commit(&next_rev, &mc_version)?;
 
         println!("Bot updated successfully to revision: {}", next_rev);
+        println!("has_changes=true");
     } else {
         println!("Already at latest revision");
+        println!("has_changes=false");
     }
 
     Ok(())

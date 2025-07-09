@@ -1,11 +1,7 @@
 name: Build and Release
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'bot/Cargo.toml'
-      - 'bot/Cargo.lock'
+  workflow_dispatch:
 
 permissions:
   contents: write

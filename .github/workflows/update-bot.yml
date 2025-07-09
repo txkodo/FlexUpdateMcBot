@@ -38,6 +38,7 @@ jobs:
       uses: Swatinem/rust-cache@v2
     
     - name: Run update tool
+      id: update
       run: |
         args=()
         if [ -n "${{ inputs.next_rev }}" ]; then
@@ -47,15 +48,31 @@ jobs:
           args+=(--mc-version "${{ inputs.mc_version }}")
         fi
         if [ ${#args[@]} -gt 0 ]; then
-          cargo run --bin update-bot -- "${args[@]}"
+          output=$(cargo run --bin update-bot -- "${args[@]}")
         else
-          cargo run --bin update-bot
+          output=$(cargo run --bin update-bot)
+        fi
+        echo "$output"
+        
+        # Extract has_changes from output
+        if echo "$output" | grep -q "has_changes=true"; then
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+        else
+          echo "has_changes=false" >> $GITHUB_OUTPUT
         fi
     
     - name: Push changes to main
+      if: steps.update.outputs.has_changes == 'true'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git push origin main
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Trigger build workflow
+      if: steps.update.outputs.has_changes == 'true'
+      run: |
+        gh workflow run build.yml
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
