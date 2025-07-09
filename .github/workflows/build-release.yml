@@ -109,18 +109,18 @@ jobs:
         
         # Copy the built binary to workspace root
         cp "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" "../../$ASSET_NAME"
-        
-        # Set output for next steps
-        echo "ASSET_NAME=$ASSET_NAME" >> $GITHUB_ENV
       shell: bash
     
     - name: Upload to release
-      run: gh release upload "v${{ inputs.mc_version }}" "$ASSET_NAME" --clobber
+      run: |
+        ASSET_NAME="flex-update-mc-bot-${{ inputs.mc_version }}-${{ matrix.platform }}${{ matrix.ext }}"
+        gh release upload "v${{ inputs.mc_version }}" "$ASSET_NAME" --clobber
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: bash
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.ASSET_NAME }}
-        path: ${{ env.ASSET_NAME }}
+        name: flex-update-mc-bot-${{ inputs.mc_version }}-${{ matrix.platform }}${{ matrix.ext }}
+        path: flex-update-mc-bot-${{ inputs.mc_version }}-${{ matrix.platform }}${{ matrix.ext }}
