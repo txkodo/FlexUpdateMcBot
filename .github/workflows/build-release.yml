@@ -79,6 +79,7 @@ jobs:
     - name: Read rust toolchain
       id: toolchain
       run: echo "toolchain=$(cat "versions/${{ inputs.mc_version }}/rust-toolchain")" >> $GITHUB_OUTPUT
+      shell: bash
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
