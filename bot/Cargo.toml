@@ -4,7 +4,7 @@ anyhow = "1.0.98"
 
 [dependencies.azalea]
 git = "https://github.com/azalea-rs/azalea"
-rev = "a060b739158d9ff2cc3d7ecb13e79de091f1f055"
+rev = "ebc2e0c067d8b2c901ae02e032159e2c80eac7bc"
 
 [dependencies.clap]
 features = ["derive"]
@@ -16,4 +16,4 @@ version = "0.1.0"
 name = "flex-update-mc-bot"
 
 [package.metadata]
-mc_version = "1.21.6"
+mc_version = "1.21.7"
