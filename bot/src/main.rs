@@ -13,11 +13,6 @@ impl Args {
     fn parse() -> Result<Self> {
         let args: Vec<String> = env::args().collect();
 
-        if args.len() != 5 {
-            eprintln!("Usage: {} <username> <host> <port>", args[0]);
-            std::process::exit(1);
-        }
-
         let port = args[3]
             .parse::<u16>()
             .map_err(|_| anyhow::anyhow!("Invalid port number: {}", args[3]))?;
