@@ -8,6 +8,8 @@ use tools::*;
 struct Cli {
     #[arg(long, help = "Specific azalea revision to update to")]
     next_rev: Option<String>,
+    #[arg(long, help = "Minecraft version")]
+    mc_version: Option<String>,
 }
 
 #[tokio::main]
@@ -39,9 +41,15 @@ async fn main() -> Result<()> {
         // Checkout the next revision
         checkout_revision(azalea_path, &next_rev)?;
 
-        // 4. Get Minecraft version from azalea Cargo.toml
-        let mc_version = get_minecraft_version(azalea_path)?;
-        println!("Minecraft version: {}", mc_version);
+        // 4. Get Minecraft version from azalea Cargo.toml or use provided version
+        let mc_version = if let Some(provided_version) = cli.mc_version {
+            println!("Using provided Minecraft version: {}", provided_version);
+            provided_version
+        } else {
+            let version = get_minecraft_version(azalea_path)?;
+            println!("Minecraft version: {}", version);
+            version
+        };
 
         // 5. Update bot/Cargo.toml
         bot_config.dependencies.azalea.rev = next_rev.clone();
