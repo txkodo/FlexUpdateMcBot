@@ -128,9 +128,9 @@ jobs:
     - name: Discord notification on failure
       if: failure()
       run: |
-        curl -H "Content-Type: application/json" \
+        curl -H "Content-Type: application/json; charset=utf-8" \
              -d '{
-               "content": "🔴 **Build Failed**\n**Version:** ${{ inputs.mc_version }}\n**Platform:** ${{ matrix.platform }}\n**Target:** ${{ matrix.target }}\n**Repository:** ${{ github.repository }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+               "content": "❌ **Build Failed**\n**Version:** ${{ inputs.mc_version }}\n**Platform:** ${{ matrix.platform }}\n**Target:** ${{ matrix.target }}\n**Repository:** ${{ github.repository }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
              }' \
              ${{ secrets.DISCORD_WEBHOOK_URL }}
       shell: bash
