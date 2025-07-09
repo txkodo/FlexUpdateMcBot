@@ -1,5 +1,6 @@
 use anyhow::Result;
-use azalea::{prelude::*, protocol::ServerAddress};
+use azalea_client::Account;
+use azalea_protocol::ServerAddress;
 use clap::Parser;
 
 #[derive(Parser)]
@@ -32,14 +33,19 @@ async fn main() -> Result<()> {
         args.host, args.port, args.username, args.version
     );
 
-    ClientBuilder::new()
-        .start(
-            Account::offline(&args.username),
-            ServerAddress {
-                host: args.host,
-                port: args.port,
-            },
-        )
+    let account = Account::offline("bot");
+    let mut client = account
+        .join(&ServerAddress {
+            host: args.host,
+            port: args.port,
+        })
         .await
         .unwrap();
+
+    while let Some(e) = client.next().await {
+        match e {
+            _ => {}
+        };
+    }
+    Ok(())
 }

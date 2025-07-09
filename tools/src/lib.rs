@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use git2::{Repository, Signature, Time};
+use git2::{Repository, Signature};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -24,23 +24,9 @@ pub struct PackageInfo {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BotCargoToml {
-    pub dependencies: BotDependencies,
     pub package: BotPackageInfo,
     #[serde(flatten)]
     pub others: HashMap<String, toml::Value>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct BotDependencies {
-    pub azalea: AzaleaDependency,
-    #[serde(flatten)]
-    pub others: HashMap<String, toml::Value>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AzaleaDependency {
-    pub git: String,
-    pub rev: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
