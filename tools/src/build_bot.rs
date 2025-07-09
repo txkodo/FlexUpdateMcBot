@@ -75,7 +75,7 @@ fn main() -> Result<()> {
     }
 
     build_cmd
-        .args(["+nightly", "build", "--release"])
+        .args(["build", "--release"])
         .current_dir("bot");
 
     // Always add target
