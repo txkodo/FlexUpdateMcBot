@@ -21,5 +21,6 @@ version = "0.1.0"
 name = "flex-update-mc-bot"
 edition = "2024"
 
+
 [package.metadata]
 mc_version = "1.19.2"
