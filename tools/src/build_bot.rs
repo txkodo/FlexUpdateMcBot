@@ -43,8 +43,14 @@ fn main() -> Result<()> {
 
     // Add target for cross-compilation
     println!("Adding target: {}", target);
-    let target_add_output = Command::new("rustup")
-        .args(["target", "add", target])
+    let mut target_add_cmd = Command::new("rustup");
+    if let Some(toolchain) = &cli.rust_toolchain {
+        target_add_cmd.args(["target", "add", "--toolchain", toolchain, target]);
+    } else {
+        target_add_cmd.args(["target", "add", target]);
+    }
+    
+    let target_add_output = target_add_cmd
         .output()
         .context("Failed to execute rustup target add")?;
 
