@@ -1,0 +1,43 @@
+name: Build and Release All Versions
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-all:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Build all versions
+      run: |
+        echo "Building all versions..."
+        
+        # Get all version directories
+        versions=$(ls -1 versions/)
+        
+        if [ -z "$versions" ]; then
+          echo "No versions found in versions/ directory"
+          exit 1
+        fi
+        
+        echo "Found versions: $versions"
+        
+        # Trigger build for each version
+        for version in $versions; do
+          echo "Triggering build for version: $version"
+          gh workflow run build-release.yml -f mc_version="$version"
+          
+          # Add a small delay to avoid rate limiting
+          sleep 2
+        done
+        
+        echo "All builds triggered successfully!"
+        echo "Monitor progress at: https://github.com/${{ github.repository }}/actions"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
