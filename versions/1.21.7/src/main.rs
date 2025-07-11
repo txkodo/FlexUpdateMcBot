@@ -1,35 +1,18 @@
 use anyhow::Result;
-use azalea_client::{Account, Client};
-use azalea_protocol::ServerAddress;
-use std::env;
-
-struct Args {
-    username: String,
-    host: String,
-    port: u16,
-}
-
-impl Args {
-    fn parse() -> Result<Self> {
-        let args: Vec<String> = env::args().collect();
-
-        let port = args[3]
-            .parse::<u16>()
-            .map_err(|_| anyhow::anyhow!("Invalid port number: {}", args[3]))?;
-
-        Ok(Args {
-            username: args[1].clone(),
-            host: args[2].clone(),
-            port
-        })
-    }
-}
+use azalea_client::{Account, Client, ClientInformation, Event};
+use azalea_protocol::{
+    ServerAddress,
+    common::client_information::{ChatVisibility, HumanoidArm, ModelCustomization, ParticleStatus},
+    packets::game::ClientboundGamePacket,
+};
+use common::{StdoutEvent, serialize_stdout_line};
+use std::io::{self, Write};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let args = Args::parse()?;
+    let args = common::parse_args();
 
-    let (_client, mut event) = Client::join(
+    let (client, mut event) = Client::join(
         Account::offline(&args.username),
         ServerAddress {
             host: args.host,
@@ -38,11 +21,48 @@ async fn main() -> Result<()> {
     )
     .await?;
 
+    let mut stdout = io::stdout();
+
     while let Some(e) = event.recv().await {
         match e {
-            azalea_client::Event::Login => {
-                println!(r#"{{"event":"login"}}"#);
+            Event::Init => {
+                client
+                    .set_client_information(ClientInformation {
+                        language: "en_us".to_string(),
+                        view_distance: args.view_distance,
+                        chat_visibility: ChatVisibility::Hidden,
+                        chat_colors: false,
+                        model_customization: ModelCustomization::default(),
+                        main_hand: HumanoidArm::default(),
+                        text_filtering_enabled: false,
+                        allows_listing: false,
+                        particle_status: ParticleStatus::Minimal,
+                    })
+                    .await;
             }
+            Event::Spawn => {
+                stdout.write(&serialize_stdout_line(&StdoutEvent::Spawn {}))?;
+                stdout.write("\n".as_bytes())?;
+            }
+            Event::Disconnect(reason) => {
+                stdout.write(&serialize_stdout_line(&StdoutEvent::Disconnect {
+                    reason: reason
+                        .map(|x| x.to_string())
+                        .unwrap_or("unknown".to_string()),
+                }))?;
+                stdout.write("\n".as_bytes())?;
+                break;
+            }
+            Event::Packet(packet) => match &*packet {
+                ClientboundGamePacket::LevelChunkWithLight(packet) => {
+                    stdout.write(&serialize_stdout_line(&StdoutEvent::Chunk {
+                        x: packet.x,
+                        z: packet.z,
+                    }))?;
+                    stdout.write("\n".as_bytes())?;
+                }
+                _ => {}
+            },
             _ => {}
         }
     }

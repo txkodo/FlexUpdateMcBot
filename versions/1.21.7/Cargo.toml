@@ -16,3 +16,6 @@ package = "azalea-protocol"
 git = "https://github.com/azalea-rs/azalea"
 rev = "ebc2e0c067d8b2c901ae02e032159e2c80eac7bc"
 package = "azalea-client"
+
+[dependencies.common]
+path = "../../common"
