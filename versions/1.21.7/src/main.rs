@@ -1,8 +1,7 @@
 use anyhow::Result;
-use azalea_client::{Account, Client, ClientInformation, Event};
+use azalea_client::{Account, Client, Event};
 use azalea_protocol::{
     ServerAddress,
-    common::client_information::{ChatVisibility, HumanoidArm, ModelCustomization, ParticleStatus},
     packets::game::ClientboundGamePacket,
 };
 use common::{StdoutEvent, serialize_stdout_line};
@@ -12,7 +11,7 @@ use std::io::{self, Write};
 async fn main() -> Result<()> {
     let args = common::parse_args();
 
-    let (client, mut event) = Client::join(
+    let (_client, mut event) = Client::join(
         Account::offline(&args.username),
         ServerAddress {
             host: args.host,
