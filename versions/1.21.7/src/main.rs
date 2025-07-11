@@ -25,21 +25,6 @@ async fn main() -> Result<()> {
 
     while let Some(e) = event.recv().await {
         match e {
-            Event::Init => {
-                client
-                    .set_client_information(ClientInformation {
-                        language: "en_us".to_string(),
-                        view_distance: args.view_distance,
-                        chat_visibility: ChatVisibility::Hidden,
-                        chat_colors: false,
-                        model_customization: ModelCustomization::default(),
-                        main_hand: HumanoidArm::default(),
-                        text_filtering_enabled: false,
-                        allows_listing: false,
-                        particle_status: ParticleStatus::Minimal,
-                    })
-                    .await;
-            }
             Event::Spawn => {
                 stdout.write(&serialize_stdout_line(&StdoutEvent::Spawn {}))?;
                 stdout.write("\n".as_bytes())?;
