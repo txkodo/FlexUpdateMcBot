@@ -11,9 +11,11 @@ pub enum StdinEvent {}
 pub enum StdoutEvent {
     #[serde(rename = "spawn")]
     Spawn {},
+    #[serde(rename = "disconnect")]
     Disconnect {
         reason: String,
     },
+    #[serde(rename = "chunk")]
     Chunk {
         x: i32,
         z: i32,
