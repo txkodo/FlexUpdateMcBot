@@ -9,12 +9,12 @@ tokio = "1.47.1"
 
 [dependencies.azalea-protocol]
 git = "https://github.com/azalea-rs/azalea"
-rev = "1a1402954b07cd77615d0afc026c73b008787f51"
+rev = "9aaf893588eaecd62f6b146897cbce8a3a5058b5"
 package = "azalea-protocol"
 
 [dependencies.azalea-client]
 git = "https://github.com/azalea-rs/azalea"
-rev = "1a1402954b07cd77615d0afc026c73b008787f51"
+rev = "9aaf893588eaecd62f6b146897cbce8a3a5058b5"
 package = "azalea-client"
 
 [dependencies.common]
