@@ -5,16 +5,16 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.100"
-tokio = "1.47.1"
+tokio = "1.48.0"
 
 [dependencies.azalea-protocol]
 git = "https://github.com/azalea-rs/azalea"
-rev = "3f7b56f5f2c8bfe36aed31aa8383d5edcc7484bf"
+rev = "ea271fab1f1726cb65ba93b427a33915f8e164a5"
 package = "azalea-protocol"
 
 [dependencies.azalea-client]
 git = "https://github.com/azalea-rs/azalea"
-rev = "3f7b56f5f2c8bfe36aed31aa8383d5edcc7484bf"
+rev = "ea271fab1f1726cb65ba93b427a33915f8e164a5"
 package = "azalea-client"
 
 [dependencies.common]
